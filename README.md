@@ -4,6 +4,8 @@
 
 ![宜忌日历](./assets/screenshots/宜忌日历.png)
 
+![计时器](./assets/screenshots/计时器.png)
+
 ## 功能一览
 
 - **宜忌月历**：按月展示每日宜/忌，同一天打开结果完全一致（日期加盐 PRNG 生成，可复现）
