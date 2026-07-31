@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="摸鱼小猫">
+  <defs>
+    <linearGradient id="catBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2c78f"/>
+      <stop offset="1" stop-color="#e0a96b"/>
+    </linearGradient>
+  </defs>
+  <!-- 睡垫：黛绿椭圆 -->
+  <ellipse cx="48" cy="80" rx="36" ry="10" fill="#f7efdf" stroke="#3b5a4e" stroke-width="2"/>
+  <ellipse cx="48" cy="80" rx="36" ry="6" fill="none" stroke="#c49a4a" stroke-width="1.5" opacity="0.7"/>
+  <!-- 尾巴 -->
+  <path d="M60 74 C 74 78, 78 64, 70 56" fill="none" stroke="#3a3328" stroke-width="4" stroke-linecap="round"/>
+  <!-- 身体（趴伏） -->
+  <ellipse cx="48" cy="66" rx="30" ry="16" fill="url(#catBody)" stroke="#3a3328" stroke-width="2.5"/>
+  <!-- 前爪并拢 -->
+  <path d="M34 72 L 40 72 M 56 72 L 62 72" stroke="#3a3328" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  <!-- 头 -->
+  <circle cx="48" cy="40" r="21" fill="url(#catBody)" stroke="#3a3328" stroke-width="2.5"/>
+  <path d="M32 34 L 37 24 L 44 33 Z" fill="url(#catBody)" stroke="#3a3328" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M64 34 L 59 24 L 52 33 Z" fill="url(#catBody)" stroke="#3a3328" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- 闭眼（打盹） -->
+  <path d="M40 39 Q 44 42, 48 39" stroke="#3a3328" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M48 39 Q 52 42, 56 39" stroke="#3a3328" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- 鼻子 -->
+  <path d="M47 44 L 49 44 M46 45 Q 48 46, 50 45" stroke="#3a3328" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <!-- 胡须 -->
+  <path d="M34 43 L 24 41 M32 47 L 22 48 M62 43 L 72 41 M64 47 L 74 48" stroke="#3a3328" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+  <!-- 腮红 -->
+  <circle cx="35" cy="47" r="3" fill="#b3261e" opacity="0.35"/>
+  <circle cx="61" cy="47" r="3" fill="#b3261e" opacity="0.35"/>
+  <!-- 头顶鱼骨小徽记 -->
+  <path d="M45 8 h6 M48 8 v5" stroke="#c49a4a" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="43" cy="9" r="1.6" fill="#c49a4a"/>
+  <circle cx="53" cy="9" r="1.6" fill="#c49a4a"/>
+  <circle cx="40" cy="11" r="1.2" fill="#c49a4a"/>
+  <circle cx="56" cy="11" r="1.2" fill="#c49a4a"/>
+</svg>

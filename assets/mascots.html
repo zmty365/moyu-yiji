@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>摸鱼视觉资产 · 样板</title>
+  <link rel="stylesheet" href="../css/mascots.css" />
+  <style>
+    body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #f7efdf; color: #3a3328; padding: 32px; }
+    h1 { color: #8c1b12; letter-spacing: 0.06em; }
+    h2 { color: #7a5b2e; margin: 34px 0 10px; border-bottom: 1px dashed #d8c49a; padding-bottom: 6px; }
+    .row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+    .demo { background: #fffdf4; border: 1px solid #e5d5ae; border-radius: 16px; padding: 22px 26px; box-shadow: 0 6px 16px rgba(150,120,70,0.10); }
+    .note { color: #a0885a; font-size: 13px; }
+    code { background: #f0e5c8; padding: 1px 6px; border-radius: 6px; font-size: 13px; color: #7a140e; }
+  </style>
+</head>
+<body>
+  <h1>🐟 摸鱼通胜 · 视觉资产样板</h1>
+  <p class="note">全部离线可用：纯 emoji + CSS 动画，或本地 SVG 文件。</p>
+
+  <h2>1）打盹摸鱼小猫（含 zzz & 眨眼）</h2>
+  <div class="row">
+    <div class="demo">
+      <div class="mascot-cat">
+        <span class="mf-cat-z z1">z</span><span class="mf-cat-z z2">z</span><span class="mf-cat-z z3">z</span>
+        <span class="face">🐱</span>
+      </div>
+      <p class="note">顶部/空状态提示<img class="mascot-inline" src="../assets/mascot-cat.svg" alt="摸鱼小猫" /></p>
+    </div>
+    <div class="demo">
+      <p>睡姿 + 身边鱼，组词版：</p>
+      <div class="mf-cat-dozing">😿 <span class="mf-cat-z">z</span>🐟</div>
+    </div>
+  </div>
+
+  <h2>2）摸鱼小鱼（鱼尾摆动 + 水波 + 气泡）</h2>
+  <div class="row">
+    <div class="demo mascot-fish">
+      <span class="mf-bubbles"><span>🐡</span><span>🫧</span><span>🫧</span></span>
+      <span class="mf-fish">🐟</span>
+      <span class="mf-wave-line"><span>🌊</span><span>🌊</span><span>🌊</span></span>
+    </div>
+    <div class="demo">
+      <img class="mascot-inline" src="../assets/mascot-fish.svg" alt="摸鱼小鱼" />
+      <span class="note">标题旁小装饰（右上角 banner 可用）</span>
+    </div>
+  </div>
+
+  <h2>3）状态切换点缀</h2>
+  <div class="row">
+    <div class="demo">
+      <span class="status-emoji-running">摸鱼中</span><br/>
+      <span class="status-emoji-dozing">打盹</span><br/>
+      <span class="status-emoji-fishing">钓鱼</span><br/>
+      <span class="status-emoji-lounge">躺平</span>
+    </div>
+  </div>
+
+  <h2>4）内联 SVG 直接引用（离线性 100%）</h2>
+  <div class="row">
+    <div class="demo">
+      <img src="../assets/mascot-cat.svg" width="96" height="96" alt="摸鱼小猫" />
+      <img src="../assets/mascot-fish.svg" width="96" height="96" alt="摸鱼小鱼" />
+      <p class="note">
+        可直接 <code>&lt;img src="assets/mascot-fish.svg"&gt;</code>，
+        或把 SVG 源码内联到 HTML 中，更可叠加 <code>mf-float</code> 等动画类。
+      </p>
+    </div>
+  </div>
+</body>
+</html>

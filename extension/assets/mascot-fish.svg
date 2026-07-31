@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="摸鱼小鱼">
+  <defs>
+    <linearGradient id="fishBody" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f2b56b"/>
+      <stop offset="1" stop-color="#d97a2e"/>
+    </linearGradient>
+  </defs>
+  <!-- 水波 -->
+  <path d="M12 80 Q 22 74, 32 80 T 52 80" fill="none" stroke="#3b5a4e" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  <path d="M44 88 Q 54 82, 64 88 T 84 88" fill="none" stroke="#3b5a4e" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  <!-- 尾鳍 -->
+  <path d="M60 44 L 72 34 L 72 54 Z" fill="url(#fishBody)" stroke="#3a3328" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- 鱼身 -->
+  <path d="M18 42 Q 28 26, 50 30 Q 68 34, 62 48 Q 68 62, 50 66 Q 28 70, 18 54 Z"
+        fill="url(#fishBody)" stroke="#3a3328" stroke-width="2.5"/>
+  <!-- 鳞纹 -->
+  <path d="M30 40 Q 36 46, 44 40 Q 50 46, 56 42" fill="none" stroke="#c49a4a" stroke-width="1.6" opacity="0.7"/>
+  <path d="M28 52 Q 34 58, 42 52 Q 48 58, 54 54" fill="none" stroke="#c49a4a" stroke-width="1.6" opacity="0.7"/>
+  <!-- 眼睛 -->
+  <circle cx="26" cy="45" r="3.2" fill="#3a3328"/>
+  <circle cx="27" cy="44" r="1.1" fill="#fff"/>
+  <!-- 微笑嘴 -->
+  <path d="M24 52 Q 28 55, 32 53" fill="none" stroke="#3a3328" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- 鱼鳍 -->
+  <path d="M42 34 L 46 26 L 52 34 Z" fill="url(#fishBody)" stroke="#3a3328" stroke-width="2" stroke-linejoin="round"/>
+  <!-- 气泡 -->
+  <circle cx="70" cy="40" r="3" fill="none" stroke="#3b5a4e" stroke-width="1.6" opacity="0.7"/>
+  <circle cx="77" cy="34" r="2" fill="none" stroke="#3b5a4e" stroke-width="1.4" opacity="0.6"/>
+  <circle cx="83" cy="28" r="1.4" fill="none" stroke="#3b5a4e" stroke-width="1.2" opacity="0.5"/>
+</svg>

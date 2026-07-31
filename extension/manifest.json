@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "宜忌月历 · 摸鱼账本",
+  "version": "1.2.0",
+  "description": "弹出式宜忌月历 + 摸鱼账本：简洁小窗 + 完整月历；计时器按真实时间戳累计摸鱼时长与金额，后台持续计时、关浏览器自动暂停，薪资与记录通过 chrome.storage 跨重启保持。",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "宜忌月历 · 摸鱼账本",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "permissions": ["storage", "alarms"]
+}

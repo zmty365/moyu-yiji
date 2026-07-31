@@ -1,0 +1,156 @@
+/* ============================================================
+   摸鱼通胜 · 轻量视觉资产（纯 emoji + CSS，离线可用）
+   与暖调"通胜/月历"配色相融。使用方式见 assets/mascots.html。
+
+   约定：容器继承行内字号的 emoji 组合；背景统一用宣纸米 #
+   ============================================================ */
+
+/* —— 通用：缓动浮动（鱼/气泡/睡猫整体） —— */
+@keyframes mf-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* 打盹猫的闭眼眨动（让闭眼线条轻微睁开又合上） */
+@keyframes mf-blink {
+  0%, 46%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.35); }
+}
+
+/* 鱼尾摇摆：以左边缘为支点左右晃动 */
+@keyframes mf-tail {
+  0%, 100% { transform: rotate(-12deg); }
+  50% { transform: rotate(12deg); }
+}
+
+/* 水波横向轻轻起伏 */
+@keyframes mf-wave {
+  0%, 100% { transform: translateX(0) scaleY(1); }
+  50% { transform: translateX(3px) scaleY(0.9); }
+}
+
+/* 气泡上升 */
+@keyframes mf-bubble {
+  0% { transform: translateY(0); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translateY(-26px); opacity: 0; }
+}
+
+/* 冒泡的"zzz"／字在睡猫头侧缓缓上浮 */
+@keyframes mf-zzz {
+  0% { transform: translate(0, 0); opacity: 0; }
+  25% { opacity: 0.9; }
+  100% { transform: translate(4px, -18px); opacity: 0; }
+}
+
+/* 躺平猫整体上下轻摆（带呼噜呼吸感） */
+.mf-cat-dozing {
+  display: inline-block;
+  font-size: 3.4rem;          /* 随容器可调 */
+  line-height: 1;
+  transform-origin: center bottom;
+  animation: mf-float 3.6s ease-in-out infinite;
+}
+
+/* 闭眼部分：单独套一层做"眨眼"（猫头动画元素里引用 .mf-cat-eye） */
+.mf-cat-eye {
+  display: inline-block;
+  animation: mf-blink 4s ease-in-out infinite;
+}
+
+/* 冒出的 zzz（分别不同延迟错开） */
+.mf-cat-z {
+  position: absolute;
+  font-size: 0.35em;
+  color: #3b5a4e;
+  animation: mf-zzz 2.4s ease-out infinite;
+}
+.mf-cat-z.z2 { animation-delay: 0.8s; animation-duration: 2.6s; }
+.mf-cat-z.z3 { animation-delay: 1.6s; animation-duration: 2.2s; }
+
+/* 摸鱼鱼：鱼尾 🐟 右下摆，整体浮动 */
+.mf-fish {
+  display: inline-block;
+  line-height: 1;
+  animation: mf-float 3s ease-in-out infinite;
+}
+.mf-fish-tail {
+  display: inline-block;
+  margin-left: -0.02em;
+  animation: mf-tail 1.6s ease-in-out infinite;
+  transform-origin: left center;
+}
+
+/* 水波（🌊 或 波浪长条） */
+.mf-wave-line {
+  display: inline-flex;
+  gap: 0.06em;
+  font-size: 0.8em;
+  color: #3b5a4e;
+}
+.mf-wave-line span {
+  display: inline-block;
+  animation: mf-wave 2.4s ease-in-out infinite;
+}
+.mf-wave-line span:nth-child(2) { animation-delay: 0.3s; }
+.mf-wave-line span:nth-child(3) { animation-delay: 0.6s; }
+
+/* 冒泡组：容器内多颗气泡依次上浮 */
+.mf-bubbles span {
+  display: inline-block;
+  position: relative;
+  animation: mf-bubble 2.6s ease-in-out infinite;
+}
+.mf-bubbles span:nth-child(2) { animation-delay: 0.7s; }
+.mf-bubbles span:nth-child(3) { animation-delay: 1.4s; }
+
+/* —— 组合插画骨架：小场景，方便直接塞进空白处/空状态 —— */
+
+/* 摸鱼小猫打盹（用眼睛+耳朵+胡须+腮红 emoji 拼成，配 zzz） */
+.mascot-cat {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 168px;
+  height: 150px;
+  border-radius: 24px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #fffdf4, #f3e3c0);
+  border: 1.5px solid rgba(200, 166, 96, 0.5);
+  box-shadow: inset 0 0 0 4px rgba(255, 253, 244, 0.6);
+}
+.mascot-cat .face {
+  font-size: 4.2rem;
+  line-height: 1;
+  animation: mf-blink 4s ease-in-out infinite;
+  display: inline-block;
+  transform-origin: center;
+}
+.mascot-cat .cat-body { font-size: 2rem; margin-top: -8px; opacity: 0.85; }
+.mascot-cat .mf-cat-z { position: absolute; right: 26px; top: 22px; font-size: 1.1rem; }
+
+/* 鱼儿戏水（鱼 + 尾 + 波 + 气泡） */
+.mascot-fish {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: linear-gradient(160deg, #fffdf4, #f0dfb8);
+  border: 1.5px solid rgba(200, 166, 96, 0.5);
+}
+
+/* 鱼儿空状态占位（无文案版，标题旁小装饰用）: <img src="assets/mascot-fish.svg"> */
+.mascot-inline {
+  width: 44px;
+  height: 44px;
+  vertical-align: -0.5em;
+  animation: mf-float 3s ease-in-out infinite;
+}
+
+/* —— 给状态切换用的文字前点缀 —— */
+.status-emoji-running::before { content: "🐟 "; }
+.status-emoji-dozing::before { content: "😴 "; }
+.status-emoji-fishing::before { content: "🎣 "; }
+.status-emoji-lounge::before { content: "🛋️ "; }

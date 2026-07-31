@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>宜忌月历 · 摸鱼账本</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/mascots.css" />
+</head>
+<body class="popup-body">
+  <div class="mini-app">
+    <!-- 顶部横幅：小猫小鱼 · 标题 · 今日金句 -->
+    <header class="banner mini-banner">
+      <div class="banner-deco banner-deco-left"><img src="assets/mascot-cat.svg" alt="打盹摸鱼小猫" class="mascot-inline" /></div>
+      <div class="banner-text">
+        <span class="banner-kicker">宜忌月历 · 摸鱼账本</span>
+        <h1 class="banner-title">我的宜忌月历 <em>摸鱼不紧张</em></h1>
+      </div>
+      <div class="banner-deco banner-deco-right"><img src="assets/mascot-fish.svg" alt="摸鱼小鱼" class="mascot-inline" />
+        <span class="mf-bubbles"><span>🫧</span><span>🫧</span><span>🫧</span></span>
+      </div>
+      <p class="mini-fortune" id="mini-fortune-text">🐟 今日摸鱼 · 明日摸鱼</p>
+    </header>
+
+    <!-- 1. 今日宜忌 -->
+    <section class="mini-card mini-yiji" aria-label="今日宜忌">
+      <div class="mini-head">
+        <span class="mini-head-title">今日宜忌</span>
+        <span class="mini-date" id="mini-date"></span>
+      </div>
+      <div class="mini-yiji-cols">
+        <div class="mini-row mini-yi">
+          <i class="chip chip-yi">宜</i>
+          <span id="mini-yi-text">…</span>
+        </div>
+        <div class="mini-row mini-ji">
+          <i class="chip chip-ji">忌</i>
+          <span id="mini-ji-text">…</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 摸鱼账本：今天 -->
+    <section class="mini-card mini-book" aria-label="今日摸鱼账本">
+      <div class="mini-head">
+        <span class="mini-head-title">摸鱼账本</span>
+        <span class="mini-sub">今天</span>
+      </div>
+      <div class="mini-book-rows">
+        <div class="mini-book-row">
+          <span>今日已摸</span>
+          <b id="mini-today-time">00:00</b>
+        </div>
+        <div class="mini-book-row">
+          <span>今日入账</span>
+          <b class="amt" id="mini-today-amount">0.00 元</b>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 开始摸鱼框：紧凑计时器 -->
+    <section class="mini-card mini-timer" id="mini-timer-card" data-state="idle" aria-label="摸鱼计时器">
+      <div class="mini-timer-top">
+        <span class="mini-timer-label">给今天摸鱼</span>
+        <span class="status-chip" id="mini-status-chip">未开始</span>
+      </div>
+      <div class="mini-timer-main">
+        <span class="mini-time" id="mini-time-text">00:00:00</span>
+        <span class="mini-amount" id="mini-amount-text">0.00 元</span>
+      </div>
+      <p id="mini-rate-error" class="error-msg" role="alert"></p>
+      <div class="mini-controls" id="mini-controls"></div>
+    </section>
+
+    <!-- 打开完整页面 -->
+    <button class="btn btn-full" id="btn-open-full" type="button">🗓️ 查看全部日历 / 调整摸鱼身价</button>
+  </div>
+
+  <script src="js/yiji-data.js"></script>
+  <script src="js/moyu-timer.js"></script>
+  <script src="js/mini.js"></script>
+</body>
+</html>
