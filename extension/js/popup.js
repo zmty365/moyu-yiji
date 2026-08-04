@@ -315,8 +315,8 @@
     }
 
     var rate = effectiveRate(settings);
-    // 今天格子与金额每秒联动：时长用 HH:MM:SS（formatClock）；历史/其它日静态，用 HH:MM。
-    var timeStr = hasLog ? (isToday ? formatClock(minutes) : formatHMM(minutes)) : '—';
+    // 所有格子时长统一用 HH:MM:SS（formatClock）：今天每秒联动，历史/其它日静态。
+    var timeStr = hasLog ? formatClock(minutes) : '—';
     var amount = (rate * minutes) / 3600;
     var amountStr = hasLog ? amount.toFixed(2) + ' 元' : '—';
 
