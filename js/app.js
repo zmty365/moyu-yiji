@@ -477,7 +477,38 @@
   // settlePending() 把 [lastLogged, getSeconds()] 的增量追加写入当天一次并推进基准。
   // 这样无论运行中的每秒心跳、暂停、重置、继续，都不会把同秒数重复记入。
   var lastLogged = 0;
+  // 记录上次落库时的日期，用于检测跨天，自动将昨天的秒数归档到昨天。
+  var lastLoggedDate = null;
+
+  // 跨天结算：计时器持续运行跨过午夜时，把截止昨天的秒数归档到昨天，
+  // 然后把今天零点之后的秒数作为新的一天的起始值。
+  function settleDayRollover() {
+    var today = todayStr();
+    if (lastLoggedDate === null) {
+      lastLoggedDate = today;
+      return;
+    }
+    if (lastLoggedDate === today) {
+      return;
+    }
+    // 跨天了：计算昨天已落账的秒数 + 本段增量中属于昨天的部分
+    // lastLogged 是截止到上次落库时的总秒数（已写入 lastLoggedDate）
+    // 昨天的 log 已经通过 settlePending 累加到 lastLoggedDate 的 key 中，无需再补
+    // 只需把 timer 的 accSeconds 重置为"今天零点后经过的秒数"，lastLogged 归零
+    var current = timer.getSeconds();
+    // 计算今天零点后经过的秒数：当前总秒数 - lastLogged（昨天及之前的已落账量）
+    var todaySeconds = current - lastLogged;
+    timer.accSeconds = todaySeconds;
+    timer.startAt = Date.now();
+    lastLogged = 0;
+    lastLoggedDate = today;
+    // 把今天的秒数写入今天的 log
+    LogStore.setValue(today, todaySeconds);
+  }
+
   function settlePending() {
+    // 先检查是否跨天
+    settleDayRollover();
     var current = timer.getSeconds();
     var delta = current - lastLogged;
     // 保留很小浮点容差，避免连续写丢。增量至少 0.25s 才记，防止阈值抖动。
@@ -495,6 +526,7 @@
     var base = 0;
     timer.accSeconds = base;
     lastLogged = base;
+    lastLoggedDate = todayStr();
     LogStore.setValue(todayStr(), base);
   }
 

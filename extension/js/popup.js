@@ -459,10 +459,29 @@
   // 恢复时据此自动暂停（后台持续计时 + 关浏览器自动暂停依赖此信号）。
   var STALE_ALIVE_MS = 5 * 60 * 1000; // 与 background.js 保持一致
   var lastLogged = 0;
+  // 记录上次落账时的日期，用于检测跨天：跨过午夜时把昨天的总量归档到昨天，今天从 0 重算。
+  var lastLoggedDate = todayStr();
+
+  // 跨天结算：计时器持续运行跨过午夜时，把截止昨天的总量落账到昨天，
+  // 然后把计时器归零重置，让今天从 0 重新累计（每天独立记录，避免总量污染新一天）。
+  function settleDayRollover() {
+    var today = todayStr();
+    if (lastLoggedDate === today) {
+      return;
+    }
+    // 跨天了：先把昨天的总量幂等落账到昨天，再清零计时器让今天从 0 起算。
+    LogStore.commit(lastLoggedDate, timer.getSeconds());
+    timer.accSeconds = 0;
+    timer.startAt = (timer.status === 'running') ? Date.now() : null;
+    lastLogged = 0;
+    lastLoggedDate = today;
+    LogStore.setValue(today, 0);
+  }
 
   // 把 running 的累计（时间戳差分总量 acc）以"max 单调幂等"方式提交到当天 log 并刷新
   // alive 水印。与 SW 的落账遵守同一契约：写 max(旧值, acc)，不重复、不倒退。
   var syncTicker = function () {
+    settleDayRollover();
     var acc = timer.getSeconds();
     if (acc - lastLogged >= 0.25) {
       LogStore.commit(todayStr(), acc);
@@ -479,6 +498,7 @@
     var base = 0;
     timer.accSeconds = base;
     lastLogged = base;
+    lastLoggedDate = todayStr();
     LogStore.setValue(todayStr(), base);
   }
 
@@ -634,7 +654,8 @@
       accSeconds: acc,
       startAt: (status === 'running' && timer.startAt !== null) ? timer.startAt : null,
       lastLogged: acc,
-      alive: status === 'running' ? Date.now() : null
+      alive: status === 'running' ? Date.now() : null,
+      logDate: lastLoggedDate
     };
   }
 

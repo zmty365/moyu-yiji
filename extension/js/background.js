@@ -63,6 +63,33 @@
       }
       if (typeof t.accSeconds !== 'number' || !isFinite(t.accSeconds)) { t.accSeconds = 0; }
       var now = Date.now();
+      var today = todayStr();
+      // 跨天检测：t.logDate 记录当前 accSeconds 归属的日期。若与今天不同，说明计时跨过午夜：
+      // 先把截止此刻的总量归档到昨天，再把 accSeconds 归零、alive 重置到现在，让今天从 0 重算。
+      var logDate = (typeof t.logDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.logDate)) ? t.logDate : today;
+      if (logDate !== today) {
+        var yBase = Math.max(0, t.accSeconds);
+        var yAlive = (typeof t.alive === 'number' && isFinite(t.alive)) ? t.alive : 0;
+        var yAcc = yBase;
+        if (yAlive > 0 && (now - yAlive) < STALE_ALIVE_MS) {
+          yAcc = yBase + Math.max(0, (now - yAlive) / 1000);
+        }
+        commitLog(logDate, yAcc, function () {
+          var reset = {
+            status: 'running',
+            hourlyRate: (typeof t.hourlyRate === 'number' && isFinite(t.hourlyRate)) ? t.hourlyRate : 0,
+            accSeconds: 0,
+            startAt: now,
+            lastLogged: 0,
+            alive: now,
+            logDate: today
+          };
+          var ro = {};
+          ro[KEY_TIMER] = reset;
+          chrome.storage.local.set(ro, function () {});
+        });
+        return;
+      }
       var base = Math.max(0, t.accSeconds);
       var alive = (typeof t.alive === 'number' && isFinite(t.alive)) ? t.alive : 0;
       var acc = base;
@@ -71,7 +98,7 @@
         acc = base + Math.max(0, (now - alive) / 1000);
       }
       // 幂等落账：写 max(旧值, acc)。
-      commitLog(todayStr(), acc, function () {
+      commitLog(today, acc, function () {
         // 刷新水位：accSeconds = lastLogged = acc，alive = now。startAt 仅为"实时时钟起点"参考，
         // 存储中保留原值以便 UI 判 running；补不补 accounting 以 acc/alive 为准。
         var next = {
@@ -80,7 +107,8 @@
           accSeconds: acc,
           startAt: t.startAt,
           lastLogged: acc,
-          alive: now
+          alive: now,
+          logDate: today
         };
         var o = {};
         o[KEY_TIMER] = next;
