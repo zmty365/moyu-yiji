@@ -83,10 +83,6 @@
     var s = total % 60;
     return pad(h) + ':' + pad(m) + ':' + pad(s);
   }
-  function formatHMM(seconds) {
-    var total = Math.max(0, Math.floor(seconds));
-    return pad(Math.floor(total / 3600)) + ':' + pad(Math.floor((total % 3600) / 60));
-  }
 
   // ---- Storage 适配层（与 popup.js 同源契约）----
   // 记录最近的本地自写，供 storage.onChanged 抑制"自身写入→又触发恢复"的反馈环，

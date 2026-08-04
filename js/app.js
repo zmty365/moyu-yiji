@@ -96,13 +96,6 @@
     var s = total % 60;
     return pad(h) + ':' + pad(m) + ':' + pad(s);
   }
-  // 秒 -> HH:MM（月历格子用，省略秒）
-  function formatHMM(seconds) {
-    var total = Math.max(0, Math.floor(seconds));
-    var h = Math.floor(total / 3600);
-    var m = Math.floor((total % 3600) / 60);
-    return pad(h) + ':' + pad(m);
-  }
 
   // ============================================================
   // 摸鱼记录存取（localStorage，按日期）

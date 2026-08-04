@@ -94,12 +94,6 @@
     var s = total % 60;
     return pad(h) + ':' + pad(m) + ':' + pad(s);
   }
-  function formatHMM(seconds) {
-    var total = Math.max(0, Math.floor(seconds));
-    var h = Math.floor(total / 3600);
-    var m = Math.floor((total % 3600) / 60);
-    return pad(h) + ':' + pad(m);
-  }
 
   // ============================================================
   // Storage 适配层（localStorage 同步 -> chrome.storage.local 异步）
