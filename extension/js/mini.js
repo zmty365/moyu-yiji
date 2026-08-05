@@ -413,6 +413,25 @@
     if (typeof saved.hourlyRate === 'number' && isFinite(saved.hourlyRate)) {
       timer.hourlyRate = saved.hourlyRate;
     }
+    // 跨天归档：saved.logDate 记录该状态所属日期。若与今天不同（保存后跨过午夜），
+    // 先把昨天累计落账到昨天，再把 saved 改写为今天 idle 的全新起点，让今天从 0 起算，
+    // 避免把昨天的 accSeconds 恢复进今天（与 background.js 的 bgTick 跨天契约一致）。
+    var todayForRestore = todayStr();
+    var savedLogDate = (typeof saved.logDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(saved.logDate)) ? saved.logDate : todayForRestore;
+    if (savedLogDate !== todayForRestore) {
+      var rolloverAcc = (typeof saved.accSeconds === 'number' && isFinite(saved.accSeconds)) ? Math.max(0, saved.accSeconds) : 0;
+      LogStore.commit(savedLogDate, rolloverAcc);
+      saved = {
+        status: 'idle',
+        hourlyRate: saved.hourlyRate,
+        accSeconds: 0,
+        startAt: null,
+        lastLogged: 0,
+        alive: null,
+        logDate: todayForRestore
+      };
+      lastLoggedDate = todayForRestore;
+    }
     if (saved.status === 'running' && typeof saved.startAt === 'number') {
       var nowMs = Date.now();
       var aliveOk = typeof saved.alive === 'number' && (nowMs - saved.alive) < STALE_ALIVE_MS;
