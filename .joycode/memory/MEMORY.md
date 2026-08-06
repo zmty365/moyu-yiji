@@ -1,0 +1,1 @@
+- [根目录与 extension 双份代码需同步改动](feedback_dual_codebase.md) — 本项目网页版(根目录)与 Chrome 扩展版(extension/)是两套并行代码，改动其一时须同步另一份对应文件
