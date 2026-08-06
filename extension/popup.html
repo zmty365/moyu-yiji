@@ -77,6 +77,37 @@
       </div>
     </section>
 
+    <!-- 4. 喝水提醒设置 -->
+    <section class="mini-card mini-water" aria-label="喝水提醒设置">
+      <div class="mini-head">
+        <span class="mini-head-title">喝水提醒</span>
+        <label class="water-switch" title="启用/禁用提醒">
+          <input type="checkbox" id="water-enabled" />
+          <span class="water-slider"></span>
+        </label>
+      </div>
+      <div class="water-rows">
+        <div class="water-row">
+          <span class="water-label">提醒间隔</span>
+          <select id="water-interval" class="water-select">
+            <option value="5">5 分钟</option>
+            <option value="15">15 分钟</option>
+            <option value="30" selected>30 分钟</option>
+            <option value="60">60 分钟</option>
+            <option value="custom">自定义</option>
+          </select>
+          <input type="number" id="water-custom" class="water-custom is-hidden" min="1" max="480" step="1" placeholder="分钟" />
+        </div>
+        <div class="water-row">
+          <span class="water-label">提示音</span>
+          <label class="water-switch water-switch-sm" title="弹出时播放提示音">
+            <input type="checkbox" id="water-sound" checked />
+            <span class="water-slider"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+
     <!-- 打开完整页面 -->
     <button class="btn btn-full" id="btn-open-full" type="button">🗓️ 查看全部日历 / 调整摸鱼身价</button>
   </div>

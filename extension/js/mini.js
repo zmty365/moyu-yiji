@@ -547,6 +547,97 @@
   // 保证弹窗/完整页/Service Worker 看同一份当日秒数与计器状态，避免各跑各的漂移。
   // 自身写入由 storageSet 记录的 lastSelfWrite 抑制，只剩外部写入触发同步。
   // ============================================================
+  // ============================================================
+  // 喝水提醒设置区：读写 storage.sync 的 water-settings。
+  // 写入后由 Service Worker (water-reminder.js) 监听 storage.onChanged 立即重排 alarm，
+  // 因此这里只负责 UI ↔ 存储的双向绑定，不直接操作 alarm。
+  // ============================================================
+  (function initWaterReminder() {
+    var KEY_WATER = 'water-settings';
+    var PRESET_INTERVALS = { 5: 1, 15: 1, 30: 1, 60: 1 };
+    var DEFAULTS = { enabled: false, intervalMin: 30, sound: true };
+
+    var elEnabled = document.getElementById('water-enabled');
+    var elInterval = document.getElementById('water-interval');
+    var elCustom = document.getElementById('water-custom');
+    var elSound = document.getElementById('water-sound');
+    if (!elEnabled || !elInterval || !elCustom || !elSound) { return; }
+
+    // 从 UI 读出规范化的间隔（自定义时取输入框，最小 1 分钟）。
+    function readIntervalFromUI() {
+      if (elInterval.value === 'custom') {
+        var v = parseInt(elCustom.value, 10);
+        if (!isFinite(v) || v < 1) { v = 1; }
+        if (v > 480) { v = 480; }
+        return v;
+      }
+      return parseInt(elInterval.value, 10) || DEFAULTS.intervalMin;
+    }
+
+    // 把配置回填到 UI：预设值命中下拉，否则切到"自定义"并填输入框。
+    function applyToUI(s) {
+      elEnabled.checked = s.enabled === true;
+      elSound.checked = s.sound !== false;
+      var interval = (typeof s.intervalMin === 'number' && s.intervalMin >= 1) ? s.intervalMin : DEFAULTS.intervalMin;
+      if (PRESET_INTERVALS[interval]) {
+        elInterval.value = String(interval);
+        elCustom.classList.add('is-hidden');
+        elCustom.value = '';
+      } else {
+        elInterval.value = 'custom';
+        elCustom.classList.remove('is-hidden');
+        elCustom.value = String(interval);
+      }
+    }
+
+    // 收集 UI 当前值写入 sync；修改立即生效由 SW 侧监听触发。
+    function persist() {
+      var o = {};
+      o[KEY_WATER] = {
+        enabled: elEnabled.checked,
+        intervalMin: readIntervalFromUI(),
+        sound: elSound.checked
+      };
+      try { chrome.storage.sync.set(o, function () { void chrome.runtime.lastError; }); } catch (e) { /* 忽略 */ }
+    }
+
+    // 下拉切换：选"自定义"显示输入框并默认填当前预设值。
+    elInterval.addEventListener('change', function () {
+      if (elInterval.value === 'custom') {
+        elCustom.classList.remove('is-hidden');
+        if (!elCustom.value) { elCustom.value = String(DEFAULTS.intervalMin); }
+        elCustom.focus();
+      } else {
+        elCustom.classList.add('is-hidden');
+      }
+      persist();
+    });
+    elCustom.addEventListener('input', persist);
+    elCustom.addEventListener('change', persist);
+    elEnabled.addEventListener('change', persist);
+    elSound.addEventListener('change', persist);
+
+    // 初始化：读取已存配置。
+    try {
+      chrome.storage.sync.get(KEY_WATER, function (obj) {
+        var s = (obj && typeof obj === 'object' && obj[KEY_WATER] && typeof obj[KEY_WATER] === 'object')
+          ? obj[KEY_WATER] : DEFAULTS;
+        applyToUI(s);
+      });
+    } catch (e) {
+      applyToUI(DEFAULTS);
+    }
+
+    // 跨设备/其它页面改动时同步回 UI。
+    if (chrome.storage && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener(function (changes, area) {
+        if (area === 'sync' && changes && changes[KEY_WATER] && changes[KEY_WATER].newValue) {
+          applyToUI(changes[KEY_WATER].newValue);
+        }
+      });
+    }
+  })();
+
   if (chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener(function (changes, areaName) {
       if (areaName !== 'local' || !changes || isSelfWrite(changes)) {

@@ -1093,3 +1093,103 @@ button {
 .mini-app .btn-full:hover {
   box-shadow: 0 10px 22px rgba(90, 120, 180, 0.34);
 }
+
+/* ===== 喝水提醒设置区 ===== */
+.mini-water .water-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.mini-water .water-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mini-water .water-label {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: #7a5b2e;
+}
+.mini-water .water-select {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #3a3328;
+  background: #fff;
+  border: 1px solid #d8c49a;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.mini-water .water-select:focus-visible {
+  outline: 2px solid #b15f0e;
+  outline-offset: 1px;
+}
+.mini-water .water-custom {
+  width: 72px;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: #3a3328;
+  background: #fff;
+  border: 1px solid #d8c49a;
+  border-radius: 8px;
+}
+.mini-water .water-custom.is-hidden {
+  display: none;
+}
+
+/* 开关（复用于启用/提示音） */
+.water-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.water-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.water-switch .water-slider {
+  position: absolute;
+  inset: 0;
+  background: #d8c49a;
+  border-radius: 22px;
+  transition: background 0.2s ease;
+}
+.water-switch .water-slider::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+.water-switch input:checked + .water-slider {
+  background: linear-gradient(135deg, #6fb7d6, #8a9ce2);
+}
+.water-switch input:checked + .water-slider::before {
+  transform: translateX(18px);
+}
+.water-switch input:focus-visible + .water-slider {
+  outline: 2px solid #b15f0e;
+  outline-offset: 2px;
+}
+.water-switch-sm {
+  width: 36px;
+  height: 20px;
+}
+.water-switch-sm .water-slider::before {
+  width: 14px;
+  height: 14px;
+}
+.water-switch-sm input:checked + .water-slider::before {
+  transform: translateX(16px);
+}
