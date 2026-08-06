@@ -582,66 +582,31 @@
         '<div class="today-row"><span>今日已摸</span><b>' + formatClock(todaySecs) + '</b></div>' +
         '<div class="today-row"><span>今日入账</span><b>' + (effectiveRate(settings) * todaySecs / 3600).toFixed(2) + ' 元</b></div>';
     }
-    buildControls(status);
+    updateControlsVisibility(status);
   }
 
-  function buildControls(status) {
-    var html = '';
+  function updateControlsVisibility(status) {
+    var btnStart = document.getElementById('btn-start');
+    var btnPause = document.getElementById('btn-pause');
+    var btnResume = document.getElementById('btn-resume');
+    var btnReset = document.getElementById('btn-reset');
+
+    if (!btnStart || !btnPause || !btnResume || !btnReset) return;
+
+    // 全部先隐藏
+    btnStart.classList.add('is-hidden');
+    btnPause.classList.add('is-hidden');
+    btnResume.classList.add('is-hidden');
+    btnReset.classList.add('is-hidden');
+
     if (status === 'idle') {
-      html = '<button class="btn btn-start" id="btn-start">开始摸鱼</button>';
+      btnStart.classList.remove('is-hidden');
     } else if (status === 'running') {
-      html = '<button class="btn btn-pause" id="btn-pause">暂停</button>' +
-        '<button class="btn btn-reset" id="btn-reset">重置</button>';
+      btnPause.classList.remove('is-hidden');
+      btnReset.classList.remove('is-hidden');
     } else if (status === 'paused') {
-      html = '<button class="btn btn-start" id="btn-resume">继续摸鱼</button>' +
-        '<button class="btn btn-reset" id="btn-reset">重置</button>';
-    }
-    controlsBox.innerHTML = html;
-    bindControls(status);
-  }
-
-  function bindControls(status) {
-    var start = document.getElementById('btn-start');
-    if (start) {
-      start.addEventListener('click', function () {
-        var err = validateRateForTimer();
-        if (err) {
-          rateError.textContent = err;
-          return;
-        }
-        rateError.textContent = '';
-        // 开启全新计时段：基准从 0 开始，后续增量才落库。
-        beginSegment();
-        timer.start(effectiveRate(settings));
-        renderMonth();
-      });
-    }
-    var pause = document.getElementById('btn-pause');
-    if (pause) {
-      pause.addEventListener('click', function () {
-        // 暂停前先把本段的增量落库（冻结基准到当前秒数）。
-        settlePending();
-        timer.pause();
-        renderMonth();
-      });
-    }
-    var resume = document.getElementById('btn-resume');
-    if (resume) {
-      resume.addEventListener('click', function () {
-        // 继续：基准保持为暂停时的秒数，之后的增量继续入库。
-        timer.resume();
-        renderMonth();
-      });
-    }
-    var reset = document.getElementById('btn-reset');
-    if (reset) {
-      reset.addEventListener('click', function () {
-        // 先结算本段剩余增量到当天，再清零计时器（保留设置，不清空输入框）。
-        settlePending();
-        timer.reset();
-        beginSegment();
-        renderMonth();
-      });
+      btnResume.classList.remove('is-hidden');
+      btnReset.classList.remove('is-hidden');
     }
   }
 
@@ -703,7 +668,36 @@
   }
 
   // 计时器。
-  timer.onChange(renderTimer);   // start/pause 等状态变化都会落库并刷新（renderTimer 会调 buildControls）
+  timer.onChange(renderTimer);   // start/pause 等状态变化都会落库并刷新
+
+  // 一次性绑定按钮事件（不随状态重建 DOM）
+  document.getElementById('btn-start').addEventListener('click', function () {
+    var err = validateRateForTimer();
+    if (err) {
+      rateError.textContent = err;
+      return;
+    }
+    rateError.textContent = '';
+    beginSegment();
+    timer.start(effectiveRate(settings));
+    renderMonth();
+  });
+  document.getElementById('btn-pause').addEventListener('click', function () {
+    settlePending();
+    timer.pause();
+    renderMonth();
+  });
+  document.getElementById('btn-resume').addEventListener('click', function () {
+    timer.resume();
+    renderMonth();
+  });
+  document.getElementById('btn-reset').addEventListener('click', function () {
+    settlePending();
+    beginSegment();   // 先清零 localStorage，再 reset，保证 renderTimer 读到 0
+    timer.reset();
+    renderMonth();
+  });
+
   renderTimer();
 
   // 实时刷新显示 + 运行中的增量实时落库（保证每次页面刷新都有记录，且日历格子实时跳动）。
