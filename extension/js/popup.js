@@ -570,67 +570,30 @@
         '<div class="today-row"><span>今日已摸</span><b>' + formatClock(todaySecs) + '</b></div>' +
         '<div class="today-row"><span>今日入账</span><b>' + (effectiveRate(settings) * todaySecs / 3600).toFixed(2) + ' 元</b></div>';
     }
-    buildControls(status);
+    updateControlsVisibility(status);
   }
 
-  function buildControls(status) {
-    var html = '';
+  function updateControlsVisibility(status) {
+    var btnStart = document.getElementById('btn-start');
+    var btnPause = document.getElementById('btn-pause');
+    var btnResume = document.getElementById('btn-resume');
+    var btnReset = document.getElementById('btn-reset');
+
+    if (!btnStart || !btnPause || !btnResume || !btnReset) return;
+
+    btnStart.classList.add('is-hidden');
+    btnPause.classList.add('is-hidden');
+    btnResume.classList.add('is-hidden');
+    btnReset.classList.add('is-hidden');
+
     if (status === 'idle') {
-      html = '<button class="btn btn-start" id="btn-start">开始摸鱼</button>';
+      btnStart.classList.remove('is-hidden');
     } else if (status === 'running') {
-      html = '<button class="btn btn-pause" id="btn-pause">暂停</button>' +
-        '<button class="btn btn-reset" id="btn-reset">重置</button>';
+      btnPause.classList.remove('is-hidden');
+      btnReset.classList.remove('is-hidden');
     } else if (status === 'paused') {
-      html = '<button class="btn btn-start" id="btn-resume">继续摸鱼</button>' +
-        '<button class="btn btn-reset" id="btn-reset">重置</button>';
-    }
-    controlsBox.innerHTML = html;
-    bindControls(status);
-  }
-
-  function bindControls(status) {
-    var start = document.getElementById('btn-start');
-    if (start) {
-      start.addEventListener('click', function () {
-        var err = validateRateForTimer();
-        if (err) {
-          rateError.textContent = err;
-          return;
-        }
-        rateError.textContent = '';
-        autoPausedNotice = false;
-        beginSegment();
-        timer.start(effectiveRate(settings));
-        renderMonth();
-      });
-    }
-    var pause = document.getElementById('btn-pause');
-    if (pause) {
-      pause.addEventListener('click', function () {
-        // 定格暂停一瞬的真实累计：先按真实值落账，再冻结为 paused(startAt=null)。
-        // 不调用 settlePending（其 writeAlive 会写一个 running 快照，可能晚到顶高/覆盖 paused）。
-        LogStore.commit(todayStr(), timer.getSeconds());
-        timer.pause(); // onChange -> persistTimerState 写 paused{accSeconds, startAt:null, alive:null}
-        renderMonth();
-      });
-    }
-    var resume = document.getElementById('btn-resume');
-    if (resume) {
-      resume.addEventListener('click', function () {
-        autoPausedNotice = false;
-        timer.resume();
-        renderMonth();
-      });
-    }
-    var reset = document.getElementById('btn-reset');
-    if (reset) {
-      reset.addEventListener('click', function () {
-        // 重置：先按真实值留账（保留当日已记账），再清零回 idle(startAt=null)。
-        LogStore.commit(todayStr(), timer.getSeconds());
-        timer.reset(); // onChange -> persistTimerState 写 idle{accSeconds:0, startAt:null}
-        beginSegment();
-        renderMonth();
-      });
+      btnResume.classList.remove('is-hidden');
+      btnReset.classList.remove('is-hidden');
     }
   }
 
@@ -841,6 +804,34 @@
     sanitizePollutedToday();
     fillSettingsForm();
     renderMonth();
+
+    // 一次性绑定按钮事件
+    document.getElementById('btn-start').addEventListener('click', function () {
+      var err = validateRateForTimer();
+      if (err) { rateError.textContent = err; return; }
+      rateError.textContent = '';
+      autoPausedNotice = false;
+      beginSegment();
+      timer.start(effectiveRate(settings));
+      renderMonth();
+    });
+    document.getElementById('btn-pause').addEventListener('click', function () {
+      LogStore.commit(todayStr(), timer.getSeconds());
+      timer.pause();
+      renderMonth();
+    });
+    document.getElementById('btn-resume').addEventListener('click', function () {
+      autoPausedNotice = false;
+      timer.resume();
+      renderMonth();
+    });
+    document.getElementById('btn-reset').addEventListener('click', function () {
+      LogStore.commit(todayStr(), timer.getSeconds());
+      timer.reset();
+      beginSegment();
+      renderMonth();
+    });
+
     renderTimer();
     if (restoreFlag.autoPaused) {
       showAutoPauseNote();

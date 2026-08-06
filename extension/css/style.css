@@ -168,6 +168,7 @@ button {
   border-top: 1px dashed #e0d0a8;
 }
 .settings-body.is-hidden { display: none; }
+.is-hidden { display: none; }
 
 .settings-grid {
   display: grid;
