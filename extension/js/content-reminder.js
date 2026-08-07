@@ -26,23 +26,19 @@
     return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
   }
 
-  // 随机喝水文案池：每次弹出随机取一条，生动一点。
+  // 兜底文案池：正常情况下文案由后台按「用户提醒词 + 语气模板」生成并随 water-show 传入；
+  // 仅当后台未传 text（异常/旧版本）时，随机取一条本地文案兜底。
   var MESSAGES = [
-    '该喝口水啦 💧',
-    '喵~ 主人该补水啦 🐱',
-    '小鱼在水里游得欢，你也来口水 🐟',
-    '咕噜咕噜，来杯水续个命 🥤',
-    '久坐一时爽，喝水才健康 💦',
-    '起身接杯水，顺便伸个懒腰 🙆',
-    '眼睛和颈椎都想让你歇会儿、喝口水 👀',
-    '水杯是不是又空了？去续满它 🚰',
-    '摸鱼也别忘了喝水哦 🐟',
-    '猫猫提醒：再忙也要喝口水 🐾',
-    '给身体浇点水，才不会变成干鱼干 🐡',
+    '该起来动动啦 💧',
+    '喵~ 主人该歇会儿啦 🐱',
+    '小鱼在水里游得欢，你也放松下 🐟',
     '停一停，喝口水，世界还在 🌊',
-    '一口水，一点温柔，都给自己 💧',
-    '起来走两步，顺路灌口水 🚶',
-    '水波都会累，你也该歇口气喝点水 🫧'
+    '久坐一时爽，起身才健康 💦',
+    '起身走两步，顺便伸个懒腰 🙆',
+    '眼睛和颈椎都想让你歇会儿 👀',
+    '摸鱼也别忘了照顾自己 🐟',
+    '猫猫提醒：再忙也要停一停 🐾',
+    '水波都会累，你也该歇口气 🫧'
   ];
   function pickMessage() {
     return MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
@@ -70,7 +66,7 @@
     } catch (e) { /* 忽略 */ }
   }
 
-  function showPanel(sound, showPauseHour) {
+  function showPanel(sound, showPauseHour, text) {
     removePanel(); // 若已有面板，先移除避免叠加
 
     var host = document.createElement('div');
@@ -154,9 +150,9 @@
         : '') +
       '</div>';
 
-    // 填充动态文本（用 textContent 避免注入内容被当作 HTML）。文案每次随机。
+    // 填充动态文本（用 textContent 避免注入内容被当作 HTML）。文案由后台生成传入，缺失时本地兜底。
     shadow.getElementById('wr-time').textContent = nowClock();
-    shadow.getElementById('wr-text').textContent = pickMessage();
+    shadow.getElementById('wr-text').textContent = (typeof text === 'string' && text) ? text : pickMessage();
 
     shadow.getElementById('wr-snooze').addEventListener('click', function () {
       removePanel();
@@ -199,7 +195,7 @@
   }
 
   // 全屏中：等待退出全屏后 10s 再弹（期间若又进全屏则重置等待）。
-  function waitFullscreenExit(sound, showPauseHour) {
+  function waitFullscreenExit(sound, showPauseHour, text) {
     clearPendingFs();
     var onChange = function () {
       if (document.fullscreenElement) {
@@ -210,7 +206,7 @@
       // 退出全屏 → 10s 后渲染。
       pendingFs.timer = setTimeout(function () {
         clearPendingFs();
-        showPanel(sound, showPauseHour);
+        showPanel(sound, showPauseHour, text);
       }, 10000);
     };
     pendingFs = { onChange: onChange, timer: null };
@@ -218,22 +214,22 @@
   }
 
   // 收到后台渲染指令：先做防打扰检测，再决定渲染/等待/延后。
-  function handleShow(sound, showPauseHour) {
+  function handleShow(sound, showPauseHour, text) {
     if (document.fullscreenElement) {
-      waitFullscreenExit(sound, showPauseHour); // 全屏：本页自行等待退出
+      waitFullscreenExit(sound, showPauseHour, text); // 全屏：本页自行等待退出
       return;
     }
     if (isTyping()) {
       sendBg('water-defer', { reason: 'input' }); // 正在输入：交后台 1 分钟后重试
       return;
     }
-    showPanel(sound, showPauseHour);
+    showPanel(sound, showPauseHour, text);
   }
 
   // 接收后台的渲染指令。
   chrome.runtime.onMessage.addListener(function (msg) {
     if (msg && msg.type === 'water-show') {
-      handleShow(msg.sound === true, msg.showPauseHour === true);
+      handleShow(msg.sound === true, msg.showPauseHour === true, typeof msg.text === 'string' ? msg.text : '');
     }
   });
 })();

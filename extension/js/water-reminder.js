@@ -18,6 +18,8 @@
 //   storage.local water-runtime   -> { mode:'periodic'|'snooze'|'retry'|'pause', nextAt }（辅助 UI，非权威）
 //   storage.local water-stats     -> { date:'YYYY-MM-DD', remind, snooze, dismiss }（跨天自动重置）
 //   storage.local water-snooze-log-> number[]（最近「稍后」时间戳，15 分钟滑窗）
+//   storage.local water-last-item -> string（上次弹出的文案，用于随机避免连续重复）
+// 提醒文案为内置文案库（喝水/起身/看远/深呼吸多条俏皮话），不开放用户自定义。
 // 计时权威由 chrome.alarms 承担。
 (function () {
   'use strict';
@@ -28,18 +30,66 @@
   var KEY_RUNTIME = 'water-runtime';       // storage.local
   var KEY_STATS = 'water-stats';           // storage.local
   var KEY_SNOOZE_LOG = 'water-snooze-log'; // storage.local
+  var KEY_LAST_MSG = 'water-last-item';    // storage.local，上次弹出的文案，用于避免连续重复
 
   var SNOOZE_MIN = 5;                 // 稍后延后分钟数
   var RETRY_MIN = 1;                  // 输入中延后重试分钟数
   var PAUSE_MIN = 60;                 // 暂停 1 小时
   var SNOOZE_WINDOW_MS = 15 * 60000;  // 稍后频次滑窗 15 分钟
   var SNOOZE_THRESHOLD = 3;           // 窗口内达到该次数即提示「暂停 1 小时」
-  var PANEL_TEXT = '该喝口水啦 👀';
+  var DEFAULT_TEXT = '起来动动、喝口水吧 👀'; // 兜底文案（文案库异常时）
+
+  // 内置健康提醒文案库：覆盖「喝水 / 起身活动 / 看看远处 / 深呼吸」四大主题，
+  // 每个主题多条俏皮说法；到点从整库随机弹一条（避免与上次连续重复），让提醒生动、不重样。
+  // 不开放用户自定义——直接内置足够多的趣味文案即可。
+  var MESSAGES = [
+    // —— 喝水 ——
+    '咕噜咕噜~ 该喝口水续命啦 💧',
+    '你的水杯是不是又空了？去灌满它 🥤',
+    '摸鱼也要补水，喝一口再战 🐟',
+    '身体 60% 都是水，别让它见底 💦',
+    '干了这杯「续命水」，元气 +1 🚰',
+    '小鱼在水里游得欢，你也来口水 🐠',
+    // —— 起身活动 ——
+    '屁股要长在椅子上啦，起来扭两下 🕺',
+    '起身走两步，让腿知道你还爱它 🚶',
+    '久坐伤身，站起来抖抖腿 🦵',
+    '伸个懒腰吧，骨头咔咔响才痛快 🙆',
+    '离开椅子 30 秒，给腰一点自由 🪑',
+    // —— 看看远处 ——
+    '盯屏幕太久啦，抬头望望远方 👀',
+    '看看窗外的绿色，给眼球放个假 🌿',
+    '20-20-20：看 6 米外的东西 20 秒 🔭',
+    '让眼睛离开屏幕，找个远处发会儿呆 ☁️',
+    '眺望一下远方，顺便偷个小懒 🏞️',
+    // —— 深呼吸 ——
+    '深吸一口气……再慢慢吐出来 🌬️',
+    '来个深呼吸，把烦躁一起呼出去 🍃',
+    '吸气 4 秒，屏住 4 秒，吐气 4 秒 🧘',
+    '给大脑充点氧，深呼吸三次 💨',
+    '闭眼深呼吸，让世界安静两秒钟 🌊'
+  ];
 
   var DEFAULTS = {
     enabled: false, intervalMin: 30, sound: true,
     quietEnabled: false, quietStart: '22:00', quietEnd: '08:00'
   };
+
+  // 从内置文案库随机挑一条，尽量避免与上一次相同（结果记入 local 供下次去重）。
+  function pickMessage(cb) {
+    chrome.storage.local.get(KEY_LAST_MSG, function (obj) {
+      var last = (obj && typeof obj[KEY_LAST_MSG] === 'string') ? obj[KEY_LAST_MSG] : null;
+      var pool = MESSAGES;
+      if (MESSAGES.length > 1 && last != null) {
+        var filtered = MESSAGES.filter(function (m) { return m !== last; });
+        if (filtered.length) { pool = filtered; }
+      }
+      var text = pool[Math.floor(Math.random() * pool.length)];
+      var o = {}; o[KEY_LAST_MSG] = text;
+      try { chrome.storage.local.set(o, function () { void chrome.runtime.lastError; }); } catch (e) { /* 忽略 */ }
+      cb(text);
+    });
+  }
 
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
   function todayStr() {
@@ -234,14 +284,14 @@
   }
 
   // 系统通知兜底：无法注入浮层时降级，按钮逻辑与面板一致（0=稍后，1=关闭）。
-  function fallbackNotify(sound) {
+  function fallbackNotify(sound, text) {
     var id = 'water-remind-' + Date.now();
     try {
       chrome.notifications.create(id, {
         type: 'basic',
         iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-        title: PANEL_TEXT,
-        message: '久坐记得喝口水、起来活动一下～',
+        title: '⏰ 摸鱼小助手提醒',
+        message: text || DEFAULT_TEXT,
         buttons: [{ title: '稍后（5 分钟）' }, { title: '关闭' }],
         requireInteraction: true,
         silent: sound !== true
@@ -260,25 +310,27 @@
         chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
           var tab = tabs && tabs[0];
           if (tab && hostInWhitelist(tab.url, list)) { return; } // 白名单：跳过本次
-          if (tab && tab.id != null && canInject(tab.url)) {
-            readSnoozeCount(function (cnt) {
-              var showPauseHour = cnt >= SNOOZE_THRESHOLD;
-              chrome.scripting.executeScript(
-                { target: { tabId: tab.id }, files: ['js/content-reminder.js'] },
-                function () {
-                  if (chrome.runtime.lastError) { fallbackNotify(s.sound); return; }
-                  chrome.tabs.sendMessage(
-                    tab.id,
-                    { type: 'water-show', text: PANEL_TEXT, sound: s.sound, showPauseHour: showPauseHour },
-                    function () { void chrome.runtime.lastError; }
-                  );
-                  // 提醒计数在收到 content 回传 water-shown 时才 +1（真正渲染成功才算）。
-                }
-              );
-            });
-          } else {
-            fallbackNotify(s.sound);
-          }
+          pickMessage(function (text) { // 内置文案库随机取一条（避免连续重复）
+            if (tab && tab.id != null && canInject(tab.url)) {
+              readSnoozeCount(function (cnt) {
+                var showPauseHour = cnt >= SNOOZE_THRESHOLD;
+                chrome.scripting.executeScript(
+                  { target: { tabId: tab.id }, files: ['js/content-reminder.js'] },
+                  function () {
+                    if (chrome.runtime.lastError) { fallbackNotify(s.sound, text); return; }
+                    chrome.tabs.sendMessage(
+                      tab.id,
+                      { type: 'water-show', text: text, sound: s.sound, showPauseHour: showPauseHour },
+                      function () { void chrome.runtime.lastError; }
+                    );
+                    // 提醒计数在收到 content 回传 water-shown 时才 +1（真正渲染成功才算）。
+                  }
+                );
+              });
+            } else {
+              fallbackNotify(s.sound, text);
+            }
+          });
         });
       });
     });
