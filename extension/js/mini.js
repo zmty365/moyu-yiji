@@ -547,6 +547,166 @@
   // 保证弹窗/完整页/Service Worker 看同一份当日秒数与计器状态，避免各跑各的漂移。
   // 自身写入由 storageSet 记录的 lastSelfWrite 抑制，只剩外部写入触发同步。
   // ============================================================
+  // ============================================================
+  // 喝水提醒设置区：读写 storage.sync 的 water-settings。
+  // 写入后由 Service Worker (water-reminder.js) 监听 storage.onChanged 立即重排 alarm，
+  // 因此这里只负责 UI ↔ 存储的双向绑定，不直接操作 alarm。
+  // ============================================================
+  (function initWaterReminder() {
+    var KEY_WATER = 'water-settings';       // storage.sync
+    var KEY_WHITELIST = 'water-whitelist';  // storage.sync
+    var KEY_STATS = 'water-stats';          // storage.local
+    var PRESET_INTERVALS = { 5: 1, 15: 1, 30: 1, 60: 1 };
+    var DEFAULTS = {
+      enabled: false, intervalMin: 30, sound: true,
+      quietEnabled: false, quietStart: '22:00', quietEnd: '08:00'
+    };
+
+    var elEnabled = document.getElementById('water-enabled');
+    var elInterval = document.getElementById('water-interval');
+    var elCustom = document.getElementById('water-custom');
+    var elSound = document.getElementById('water-sound');
+    var elQuietEnabled = document.getElementById('water-quiet-enabled');
+    var elQuietRange = document.getElementById('water-quiet-range');
+    var elQuietStart = document.getElementById('water-quiet-start');
+    var elQuietEnd = document.getElementById('water-quiet-end');
+    var elWhitelist = document.getElementById('water-whitelist');
+    var elStatRemind = document.getElementById('water-stat-remind');
+    var elStatSnooze = document.getElementById('water-stat-snooze');
+    var elStatDismiss = document.getElementById('water-stat-dismiss');
+    if (!elEnabled || !elInterval || !elCustom || !elSound) { return; }
+
+    // 从 UI 读出规范化的间隔（自定义时取输入框，最小 1 分钟）。
+    function readIntervalFromUI() {
+      if (elInterval.value === 'custom') {
+        var v = parseInt(elCustom.value, 10);
+        if (!isFinite(v) || v < 1) { v = 1; }
+        if (v > 480) { v = 480; }
+        return v;
+      }
+      return parseInt(elInterval.value, 10) || DEFAULTS.intervalMin;
+    }
+
+    // 把配置回填到 UI：预设值命中下拉，否则切到"自定义"并填输入框。
+    function applyToUI(s) {
+      elEnabled.checked = s.enabled === true;
+      elSound.checked = s.sound !== false;
+      var interval = (typeof s.intervalMin === 'number' && s.intervalMin >= 1) ? s.intervalMin : DEFAULTS.intervalMin;
+      if (PRESET_INTERVALS[interval]) {
+        elInterval.value = String(interval);
+        elCustom.classList.add('is-hidden');
+        elCustom.value = '';
+      } else {
+        elInterval.value = 'custom';
+        elCustom.classList.remove('is-hidden');
+        elCustom.value = String(interval);
+      }
+      if (elQuietEnabled) {
+        elQuietEnabled.checked = s.quietEnabled === true;
+        if (elQuietStart) { elQuietStart.value = /^\d{2}:\d{2}$/.test(s.quietStart) ? s.quietStart : DEFAULTS.quietStart; }
+        if (elQuietEnd) { elQuietEnd.value = /^\d{2}:\d{2}$/.test(s.quietEnd) ? s.quietEnd : DEFAULTS.quietEnd; }
+        if (elQuietRange) { elQuietRange.classList.toggle('is-hidden', !elQuietEnabled.checked); }
+      }
+    }
+
+    // 收集 UI 当前值写入 sync；修改立即生效由 SW 侧监听触发。
+    function persist() {
+      var o = {};
+      o[KEY_WATER] = {
+        enabled: elEnabled.checked,
+        intervalMin: readIntervalFromUI(),
+        sound: elSound.checked,
+        quietEnabled: elQuietEnabled ? elQuietEnabled.checked : false,
+        quietStart: (elQuietStart && /^\d{2}:\d{2}$/.test(elQuietStart.value)) ? elQuietStart.value : DEFAULTS.quietStart,
+        quietEnd: (elQuietEnd && /^\d{2}:\d{2}$/.test(elQuietEnd.value)) ? elQuietEnd.value : DEFAULTS.quietEnd
+      };
+      try { chrome.storage.sync.set(o, function () { void chrome.runtime.lastError; }); } catch (e) { /* 忽略 */ }
+    }
+
+    // 下拉切换：选"自定义"显示输入框并默认填当前预设值。
+    elInterval.addEventListener('change', function () {
+      if (elInterval.value === 'custom') {
+        elCustom.classList.remove('is-hidden');
+        if (!elCustom.value) { elCustom.value = String(DEFAULTS.intervalMin); }
+        elCustom.focus();
+      } else {
+        elCustom.classList.add('is-hidden');
+      }
+      persist();
+    });
+    elCustom.addEventListener('input', persist);
+    elCustom.addEventListener('change', persist);
+    elEnabled.addEventListener('change', persist);
+    elSound.addEventListener('change', persist);
+    if (elQuietEnabled) {
+      elQuietEnabled.addEventListener('change', function () {
+        if (elQuietRange) { elQuietRange.classList.toggle('is-hidden', !elQuietEnabled.checked); }
+        persist();
+      });
+    }
+    if (elQuietStart) { elQuietStart.addEventListener('change', persist); }
+    if (elQuietEnd) { elQuietEnd.addEventListener('change', persist); }
+
+    // ---- 白名单（storage.sync: water-whitelist，字符串数组）----
+    function parseWhitelist() {
+      if (!elWhitelist) { return []; }
+      return elWhitelist.value.split('\n')
+        .map(function (s) { return s.trim().toLowerCase(); })
+        .filter(function (s) { return s !== ''; });
+    }
+    function persistWhitelist() {
+      var o = {}; o[KEY_WHITELIST] = parseWhitelist();
+      try { chrome.storage.sync.set(o, function () { void chrome.runtime.lastError; }); } catch (e) { /* 忽略 */ }
+    }
+    if (elWhitelist) {
+      // 失焦时写入，避免每次敲键都写 sync（sync 有写入频率配额）。
+      elWhitelist.addEventListener('blur', persistWhitelist);
+    }
+
+    // ---- 今日统计（storage.local: water-stats，只读展示）----
+    function renderStats(s) {
+      if (!elStatRemind) { return; }
+      var valid = s && typeof s === 'object';
+      elStatRemind.textContent = String((valid && s.remind) || 0);
+      elStatSnooze.textContent = String((valid && s.snooze) || 0);
+      elStatDismiss.textContent = String((valid && s.dismiss) || 0);
+    }
+
+    // 初始化：读取已存配置 + 白名单 + 统计。
+    try {
+      chrome.storage.sync.get([KEY_WATER, KEY_WHITELIST], function (obj) {
+        var s = (obj && typeof obj === 'object' && obj[KEY_WATER] && typeof obj[KEY_WATER] === 'object')
+          ? obj[KEY_WATER] : DEFAULTS;
+        applyToUI(s);
+        if (elWhitelist && obj && Array.isArray(obj[KEY_WHITELIST])) {
+          elWhitelist.value = obj[KEY_WHITELIST].join('\n');
+        }
+      });
+      chrome.storage.local.get(KEY_STATS, function (obj) {
+        renderStats(obj && obj[KEY_STATS]);
+      });
+    } catch (e) {
+      applyToUI(DEFAULTS);
+    }
+
+    // 跨设备/其它页面改动时同步回 UI；统计随 SW 计数实时刷新。
+    if (chrome.storage && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener(function (changes, area) {
+        if (area === 'sync' && changes) {
+          if (changes[KEY_WATER] && changes[KEY_WATER].newValue) {
+            applyToUI(changes[KEY_WATER].newValue);
+          }
+          if (changes[KEY_WHITELIST] && Array.isArray(changes[KEY_WHITELIST].newValue) && elWhitelist &&
+              document.activeElement !== elWhitelist) {
+            elWhitelist.value = changes[KEY_WHITELIST].newValue.join('\n');
+          }
+        } else if (area === 'local' && changes && changes[KEY_STATS]) {
+          renderStats(changes[KEY_STATS].newValue);
+        }
+      });
+    }
+  })();
+
   if (chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener(function (changes, areaName) {
       if (areaName !== 'local' || !changes || isSelfWrite(changes)) {

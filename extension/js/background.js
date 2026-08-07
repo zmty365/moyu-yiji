@@ -13,6 +13,17 @@
 // "关浏览器自动暂停"：SW 随浏览器关闭被终止，alive 水印停止更新。下次任一 UI 初始化若读到
 // running 且 alive 距今过久（STALE_ALIVE_MS），即视为浏览器期间被关闭->仅把已提交的
 // accSeconds 留账、剩余未提交的时间丢弃，并置为 paused（自动暂停）。
+// 引入喝水提醒模块：其全部逻辑（alarm 调度、注入/兜底、按钮消息处理）都在 water-reminder.js，
+// 使用独立 alarm 名 "water-remind"，与下面的摸鱼计时逻辑解耦、互不干扰。
+// 注意：importScripts 的相对路径基于 SW 脚本自身位置（/js/background.js），
+// 用相对扩展根的绝对路径 '/js/water-reminder.js' 才能正确解析。
+try {
+  importScripts('/js/water-reminder.js');
+} catch (e) {
+  // 提醒模块加载失败不影响摸鱼计时核心，但需暴露到控制台便于排查。
+  console.error('[moyu] 喝水提醒模块加载失败:', e);
+}
+
 (function () {
   'use strict';
 

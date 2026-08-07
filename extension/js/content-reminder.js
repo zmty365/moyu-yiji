@@ -1,0 +1,235 @@
+// 喝水提醒 · 注入到宿主网页的浮层脚本（content script，V2）
+//
+// 由 water-reminder.js 通过 chrome.scripting.executeScript 按需注入到当前活动标签页。
+// 职责：
+//   1. 收到后台 water-show 后先做防打扰检测——全屏（看视频/PPT）时自行等待退出+10s 再弹；
+//      正在输入（input/textarea/contenteditable）时回传 water-defer 让后台 1 分钟后重试。
+//   2. 在右下角渲染轻量浮层（时间 + 随机文案 + 猫鱼场景 + 稍后/关闭；频繁稍后时多一行「暂停 1 小时」）。
+//   3. 按钮点击 sendMessage 回传后台重排 alarm；渲染成功回传 water-shown 供后台计入今日统计。
+//
+// 隔离原则：浮层用 Shadow DOM 承载，样式内联在 shadow 内，既不被宿主页 CSS 影响，
+// 也不污染宿主页；不劫持页面键鼠焦点，点击面板外部不关闭（仅按钮操作）。
+(function () {
+  'use strict';
+
+  // 幂等守卫：同一页可能被多次注入，只在首次注册监听，后续注入直接复用已存在的监听。
+  if (window.__moyuWaterReminderInjected) { return; }
+  window.__moyuWaterReminderInjected = true;
+
+  var HOST_ID = '__moyu-water-panel-host';
+  // 全屏等待中的一次性句柄，避免重复注入叠加多个等待定时器/监听。
+  var pendingFs = null; // { onChange, timer }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function nowClock() {
+    var d = new Date();
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+
+  // 兜底文案池：正常情况下文案由后台按「用户提醒词 + 语气模板」生成并随 water-show 传入；
+  // 仅当后台未传 text（异常/旧版本）时，随机取一条本地文案兜底。
+  var MESSAGES = [
+    '该起来动动啦 💧',
+    '喵~ 主人该歇会儿啦 🐱',
+    '小鱼在水里游得欢，你也放松下 🐟',
+    '停一停，喝口水，世界还在 🌊',
+    '久坐一时爽，起身才健康 💦',
+    '起身走两步，顺便伸个懒腰 🙆',
+    '眼睛和颈椎都想让你歇会儿 👀',
+    '摸鱼也别忘了照顾自己 🐟',
+    '猫猫提醒：再忙也要停一停 🐾',
+    '水波都会累，你也该歇口气 🫧'
+  ];
+  function pickMessage() {
+    return MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
+  }
+
+  // 极短「叮咚」的播放已移交给扩展的离屏音频页（js/offscreen.js）。
+  // 原因：content script 在宿主网页里创建/播放 WebAudio 会被浏览器自动播放策略拦截
+  // （需用户手势，否则控制台报 "AudioContext was not allowed to start" 且无声）。
+  // 现由 water-reminder.js 在收到 water-shown 时通过 offscreen document 播放，稳定发声。
+
+  function removePanel() {
+    var el = document.getElementById(HOST_ID);
+    if (el && el.parentNode) { el.parentNode.removeChild(el); }
+  }
+
+  function sendBg(type, extra) {
+    try {
+      var payload = { type: type };
+      if (extra && typeof extra === 'object') {
+        for (var k in extra) {
+          if (Object.prototype.hasOwnProperty.call(extra, k)) { payload[k] = extra[k]; }
+        }
+      }
+      chrome.runtime.sendMessage(payload, function () { void chrome.runtime.lastError; });
+    } catch (e) { /* 忽略 */ }
+  }
+
+  function showPanel(sound, showPauseHour, text) {
+    removePanel(); // 若已有面板，先移除避免叠加
+
+    var host = document.createElement('div');
+    host.id = HOST_ID;
+    // 宿主 div 只定位，不含视觉；具体样式在 shadow 内，避免被宿主页 CSS 干扰。
+    host.style.cssText = [
+      'position:fixed', 'right:20px', 'bottom:20px',
+      'z-index:2147483647', 'width:300px', 'margin:0', 'padding:0', 'border:0'
+    ].join(' !important;') + ' !important;';
+
+    var shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML =
+      '<style>' +
+      ':host{all:initial;}' +
+      '*{box-sizing:border-box;margin:0;padding:0;}' +
+      '.wr-card{' +
+      'position:relative;overflow:hidden;' +
+      'font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;' +
+      'width:300px;background:linear-gradient(180deg,#fffdf4,#f3ead6);' +
+      'border:1px solid #e8dcbe;border-radius:16px;' +
+      'box-shadow:0 10px 28px rgba(122,91,46,.24);' +
+      'padding:0 0 14px;color:#3a3328;' +
+      'animation:wr-in .26s cubic-bezier(.2,.9,.3,1.2);}' +
+      '@keyframes wr-in{from{opacity:0;transform:translateY(16px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}' +
+      // 顶部小场景：水波背景 + 猫咪探头 + 游动小鱼 + 气泡
+      '.wr-scene{position:relative;height:64px;' +
+      'background:linear-gradient(180deg,#dff1fb,#bfe3f5);overflow:hidden;' +
+      'border-bottom:1px solid #cfe6f2;}' +
+      '.wr-wave{position:absolute;left:0;right:0;bottom:0;height:20px;' +
+      'background:radial-gradient(circle at 10px -6px,#a8d8f0 8px,transparent 9px) repeat-x;' +
+      'background-size:20px 20px;opacity:.7;}' +
+      '.wr-cat{position:absolute;left:14px;bottom:6px;font-size:34px;line-height:1;' +
+      'animation:wr-peek 2.6s ease-in-out infinite;transform-origin:bottom center;}' +
+      '@keyframes wr-peek{0%,100%{transform:translateY(2px) rotate(-4deg);}50%{transform:translateY(-3px) rotate(4deg);}}' +
+      '.wr-fish{position:absolute;bottom:12px;font-size:22px;' +
+      'animation:wr-swim 5s linear infinite;}' +
+      '@keyframes wr-swim{0%{left:-24px;transform:scaleX(1);}49%{left:calc(100% + 4px);transform:scaleX(1);}50%{transform:scaleX(-1);}99%{left:-24px;transform:scaleX(-1);}100%{left:-24px;transform:scaleX(1);}}' +
+      '.wr-bubble{position:absolute;bottom:8px;color:#fff;font-size:12px;opacity:.85;' +
+      'animation:wr-rise 3.2s ease-in infinite;}' +
+      '.wr-bubble.b2{left:64%;font-size:9px;animation-delay:1.1s;}' +
+      '.wr-bubble.b3{left:80%;font-size:14px;animation-delay:.5s;}' +
+      '.wr-bubble.b1{left:48%;}' +
+      '@keyframes wr-rise{0%{transform:translateY(0);opacity:0;}20%{opacity:.85;}100%{transform:translateY(-54px);opacity:0;}}' +
+      '.wr-body{padding:12px 16px 0;}' +
+      '.wr-top{display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px;}' +
+      '.wr-time{font-size:12px;color:#a0885a;font-variant-numeric:tabular-nums;}' +
+      '.wr-text{font-size:16px;font-weight:700;color:#7a5b2e;line-height:1.5;margin:2px 0 14px;}' +
+      '.wr-btns{display:flex;gap:8px;padding:0 16px;}' +
+      '.wr-btn{flex:1;cursor:pointer;border-radius:11px;padding:9px 0;' +
+      'font-size:13px;font-weight:600;border:1px solid #d8c49a;' +
+      'transition:transform .12s ease,filter .12s ease;}' +
+      '.wr-btn:hover{transform:translateY(-1px);filter:brightness(1.04);}' +
+      '.wr-snooze{background:#fff;color:#8c6a34;}' +
+      '.wr-dismiss{background:linear-gradient(135deg,#6fb7d6,#8a9ce2);color:#fff;border-color:transparent;}' +
+      // 频繁稍后时的「暂停 1 小时」行
+      '.wr-pause-row{padding:10px 16px 0;}' +
+      '.wr-pause-tip{font-size:12px;color:#a0885a;margin-bottom:6px;}' +
+      '.wr-pause{width:100%;cursor:pointer;border-radius:11px;padding:8px 0;' +
+      'font-size:13px;font-weight:600;color:#8c6a34;background:#fff7e6;' +
+      'border:1px dashed #d8c49a;transition:filter .12s ease;}' +
+      '.wr-pause:hover{filter:brightness(1.03);}' +
+      '</style>' +
+      '<div class="wr-card" role="dialog" aria-label="喝水提醒">' +
+      '<div class="wr-scene">' +
+      '<span class="wr-bubble b1">🫧</span><span class="wr-bubble b2">🫧</span><span class="wr-bubble b3">🫧</span>' +
+      '<span class="wr-fish">🐟</span>' +
+      '<span class="wr-cat">🐱</span>' +
+      '<div class="wr-wave"></div>' +
+      '</div>' +
+      '<div class="wr-body">' +
+      '<div class="wr-top"><span class="wr-time" id="wr-time"></span></div>' +
+      '<div class="wr-text" id="wr-text"></div>' +
+      '</div>' +
+      '<div class="wr-btns">' +
+      '<button class="wr-btn wr-snooze" id="wr-snooze" type="button">稍后（5 分钟）</button>' +
+      '<button class="wr-btn wr-dismiss" id="wr-dismiss" type="button">关闭</button>' +
+      '</div>' +
+      (showPauseHour
+        ? '<div class="wr-pause-row"><div class="wr-pause-tip">看起来现在不太方便？</div>' +
+          '<button class="wr-pause" id="wr-pause" type="button">暂停 1 小时 🛑</button></div>'
+        : '') +
+      '</div>';
+
+    // 填充动态文本（用 textContent 避免注入内容被当作 HTML）。文案由后台生成传入，缺失时本地兜底。
+    shadow.getElementById('wr-time').textContent = nowClock();
+    shadow.getElementById('wr-text').textContent = (typeof text === 'string' && text) ? text : pickMessage();
+
+    shadow.getElementById('wr-snooze').addEventListener('click', function () {
+      removePanel();
+      sendBg('water-snooze');
+    });
+    shadow.getElementById('wr-dismiss').addEventListener('click', function () {
+      removePanel();
+      sendBg('water-dismiss');
+    });
+    var pauseBtn = shadow.getElementById('wr-pause');
+    if (pauseBtn) {
+      pauseBtn.addEventListener('click', function () {
+        removePanel();
+        sendBg('water-pause-1h');
+      });
+    }
+
+    (document.body || document.documentElement).appendChild(host);
+    // 渲染成功回传：供后台计入今日"提醒"次数；带上 sound 让后台经离屏页播放提示音。
+    sendBg('water-shown', { sound: sound === true });
+  }
+
+  // 是否正在输入（焦点在可编辑元素）。
+  function isTyping() {
+    var el = document.activeElement;
+    if (!el) { return false; }
+    var tag = (el.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') { return true; }
+    if (el.isContentEditable) { return true; }
+    return false;
+  }
+
+  // 取消挂起的全屏等待（重复注入或再次进入全屏时清理）。
+  function clearPendingFs() {
+    if (pendingFs) {
+      document.removeEventListener('fullscreenchange', pendingFs.onChange);
+      if (pendingFs.timer) { clearTimeout(pendingFs.timer); }
+      pendingFs = null;
+    }
+  }
+
+  // 全屏中：等待退出全屏后 10s 再弹（期间若又进全屏则重置等待）。
+  function waitFullscreenExit(sound, showPauseHour, text) {
+    clearPendingFs();
+    var onChange = function () {
+      if (document.fullscreenElement) {
+        // 又进全屏，取消已排定的延迟渲染，继续等下次退出。
+        if (pendingFs && pendingFs.timer) { clearTimeout(pendingFs.timer); pendingFs.timer = null; }
+        return;
+      }
+      // 退出全屏 → 10s 后渲染。
+      pendingFs.timer = setTimeout(function () {
+        clearPendingFs();
+        showPanel(sound, showPauseHour, text);
+      }, 10000);
+    };
+    pendingFs = { onChange: onChange, timer: null };
+    document.addEventListener('fullscreenchange', onChange);
+  }
+
+  // 收到后台渲染指令：先做防打扰检测，再决定渲染/等待/延后。
+  function handleShow(sound, showPauseHour, text) {
+    if (document.fullscreenElement) {
+      waitFullscreenExit(sound, showPauseHour, text); // 全屏：本页自行等待退出
+      return;
+    }
+    if (isTyping()) {
+      sendBg('water-defer', { reason: 'input' }); // 正在输入：交后台 1 分钟后重试
+      return;
+    }
+    showPanel(sound, showPauseHour, text);
+  }
+
+  // 接收后台的渲染指令。
+  chrome.runtime.onMessage.addListener(function (msg) {
+    if (msg && msg.type === 'water-show') {
+      handleShow(msg.sound === true, msg.showPauseHour === true, typeof msg.text === 'string' ? msg.text : '');
+    }
+  });
+})();
