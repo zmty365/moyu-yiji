@@ -1,8 +1,11 @@
-// 喝水提醒 · 注入到宿主网页的浮层脚本（content script，V1）
+// 喝水提醒 · 注入到宿主网页的浮层脚本（content script，V2）
 //
 // 由 water-reminder.js 通过 chrome.scripting.executeScript 按需注入到当前活动标签页。
-// 职责：在右下角渲染轻量浮层（当前时间 + 文案 + 稍后/关闭两按钮），可选播放极短「叮」，
-// 按钮点击后 chrome.runtime.sendMessage 回传后台，由 water-reminder.js 重排 alarm。
+// 职责：
+//   1. 收到后台 water-show 后先做防打扰检测——全屏（看视频/PPT）时自行等待退出+10s 再弹；
+//      正在输入（input/textarea/contenteditable）时回传 water-defer 让后台 1 分钟后重试。
+//   2. 在右下角渲染轻量浮层（时间 + 随机文案 + 猫鱼场景 + 稍后/关闭；频繁稍后时多一行「暂停 1 小时」）。
+//   3. 按钮点击 sendMessage 回传后台重排 alarm；渲染成功回传 water-shown 供后台计入今日统计。
 //
 // 隔离原则：浮层用 Shadow DOM 承载，样式内联在 shadow 内，既不被宿主页 CSS 影响，
 // 也不污染宿主页；不劫持页面键鼠焦点，点击面板外部不关闭（仅按钮操作）。
@@ -14,6 +17,8 @@
   window.__moyuWaterReminderInjected = true;
 
   var HOST_ID = '__moyu-water-panel-host';
+  // 全屏等待中的一次性句柄，避免重复注入叠加多个等待定时器/监听。
+  var pendingFs = null; // { onChange, timer }
 
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
   function nowClock() {
@@ -43,54 +48,29 @@
     return MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
   }
 
-  // 极短「叮咚」（< 0.5s），用 WebAudio 合成，避免额外资源与跨域。
-  // 提醒无用户手势，部分页面自动播放策略会挂起 AudioContext——先尝试 resume()，
-  // 页面此前有过交互（sticky activation）时即可发声；仍失败则静默。
-  function playDing() {
-    try {
-      var Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) { return; }
-      var ctx = new Ctx();
-      var play = function () {
-        var t0 = ctx.currentTime;
-        // 双音「叮—咚」：880Hz 起、上滑到 1174Hz，更清亮明显。
-        var freqs = [880, 1174.66];
-        freqs.forEach(function (f, i) {
-          var start = t0 + i * 0.14;
-          var osc = ctx.createOscillator();
-          var gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(f, start);
-          gain.gain.setValueAtTime(0.0001, start);
-          gain.gain.exponentialRampToValueAtTime(0.35, start + 0.012);
-          gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.22);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(start);
-          osc.stop(start + 0.24);
-        });
-        setTimeout(function () { try { ctx.close(); } catch (e) { /* 忽略 */ } }, 700);
-      };
-      if (ctx.state === 'suspended' && ctx.resume) {
-        ctx.resume().then(play).catch(function () { /* 被自动播放策略拦截，静默 */ });
-      } else {
-        play();
-      }
-    } catch (e) { /* 播放失败静默 */ }
-  }
+  // 极短「叮咚」的播放已移交给扩展的离屏音频页（js/offscreen.js）。
+  // 原因：content script 在宿主网页里创建/播放 WebAudio 会被浏览器自动播放策略拦截
+  // （需用户手势，否则控制台报 "AudioContext was not allowed to start" 且无声）。
+  // 现由 water-reminder.js 在收到 water-shown 时通过 offscreen document 播放，稳定发声。
 
   function removePanel() {
     var el = document.getElementById(HOST_ID);
     if (el && el.parentNode) { el.parentNode.removeChild(el); }
   }
 
-  function sendBg(type) {
+  function sendBg(type, extra) {
     try {
-      chrome.runtime.sendMessage({ type: type }, function () { void chrome.runtime.lastError; });
+      var payload = { type: type };
+      if (extra && typeof extra === 'object') {
+        for (var k in extra) {
+          if (Object.prototype.hasOwnProperty.call(extra, k)) { payload[k] = extra[k]; }
+        }
+      }
+      chrome.runtime.sendMessage(payload, function () { void chrome.runtime.lastError; });
     } catch (e) { /* 忽略 */ }
   }
 
-  function showPanel(text, sound) {
+  function showPanel(sound, showPauseHour) {
     removePanel(); // 若已有面板，先移除避免叠加
 
     var host = document.createElement('div');
@@ -145,6 +125,13 @@
       '.wr-btn:hover{transform:translateY(-1px);filter:brightness(1.04);}' +
       '.wr-snooze{background:#fff;color:#8c6a34;}' +
       '.wr-dismiss{background:linear-gradient(135deg,#6fb7d6,#8a9ce2);color:#fff;border-color:transparent;}' +
+      // 频繁稍后时的「暂停 1 小时」行
+      '.wr-pause-row{padding:10px 16px 0;}' +
+      '.wr-pause-tip{font-size:12px;color:#a0885a;margin-bottom:6px;}' +
+      '.wr-pause{width:100%;cursor:pointer;border-radius:11px;padding:8px 0;' +
+      'font-size:13px;font-weight:600;color:#8c6a34;background:#fff7e6;' +
+      'border:1px dashed #d8c49a;transition:filter .12s ease;}' +
+      '.wr-pause:hover{filter:brightness(1.03);}' +
       '</style>' +
       '<div class="wr-card" role="dialog" aria-label="喝水提醒">' +
       '<div class="wr-scene">' +
@@ -160,10 +147,14 @@
       '<div class="wr-btns">' +
       '<button class="wr-btn wr-snooze" id="wr-snooze" type="button">稍后（5 分钟）</button>' +
       '<button class="wr-btn wr-dismiss" id="wr-dismiss" type="button">关闭</button>' +
-      '</div></div>';
+      '</div>' +
+      (showPauseHour
+        ? '<div class="wr-pause-row"><div class="wr-pause-tip">看起来现在不太方便？</div>' +
+          '<button class="wr-pause" id="wr-pause" type="button">暂停 1 小时 🛑</button></div>'
+        : '') +
+      '</div>';
 
-    // 填充动态文本（用 textContent 避免注入内容被当作 HTML）。
-    // 文案每次随机；后台传入的非空 text 优先，否则从本地文案池随机取。
+    // 填充动态文本（用 textContent 避免注入内容被当作 HTML）。文案每次随机。
     shadow.getElementById('wr-time').textContent = nowClock();
     shadow.getElementById('wr-text').textContent = pickMessage();
 
@@ -175,16 +166,74 @@
       removePanel();
       sendBg('water-dismiss');
     });
+    var pauseBtn = shadow.getElementById('wr-pause');
+    if (pauseBtn) {
+      pauseBtn.addEventListener('click', function () {
+        removePanel();
+        sendBg('water-pause-1h');
+      });
+    }
 
     (document.body || document.documentElement).appendChild(host);
+    // 渲染成功回传：供后台计入今日"提醒"次数；带上 sound 让后台经离屏页播放提示音。
+    sendBg('water-shown', { sound: sound === true });
+  }
 
-    if (sound) { playDing(); }
+  // 是否正在输入（焦点在可编辑元素）。
+  function isTyping() {
+    var el = document.activeElement;
+    if (!el) { return false; }
+    var tag = (el.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') { return true; }
+    if (el.isContentEditable) { return true; }
+    return false;
+  }
+
+  // 取消挂起的全屏等待（重复注入或再次进入全屏时清理）。
+  function clearPendingFs() {
+    if (pendingFs) {
+      document.removeEventListener('fullscreenchange', pendingFs.onChange);
+      if (pendingFs.timer) { clearTimeout(pendingFs.timer); }
+      pendingFs = null;
+    }
+  }
+
+  // 全屏中：等待退出全屏后 10s 再弹（期间若又进全屏则重置等待）。
+  function waitFullscreenExit(sound, showPauseHour) {
+    clearPendingFs();
+    var onChange = function () {
+      if (document.fullscreenElement) {
+        // 又进全屏，取消已排定的延迟渲染，继续等下次退出。
+        if (pendingFs && pendingFs.timer) { clearTimeout(pendingFs.timer); pendingFs.timer = null; }
+        return;
+      }
+      // 退出全屏 → 10s 后渲染。
+      pendingFs.timer = setTimeout(function () {
+        clearPendingFs();
+        showPanel(sound, showPauseHour);
+      }, 10000);
+    };
+    pendingFs = { onChange: onChange, timer: null };
+    document.addEventListener('fullscreenchange', onChange);
+  }
+
+  // 收到后台渲染指令：先做防打扰检测，再决定渲染/等待/延后。
+  function handleShow(sound, showPauseHour) {
+    if (document.fullscreenElement) {
+      waitFullscreenExit(sound, showPauseHour); // 全屏：本页自行等待退出
+      return;
+    }
+    if (isTyping()) {
+      sendBg('water-defer', { reason: 'input' }); // 正在输入：交后台 1 分钟后重试
+      return;
+    }
+    showPanel(sound, showPauseHour);
   }
 
   // 接收后台的渲染指令。
   chrome.runtime.onMessage.addListener(function (msg) {
     if (msg && msg.type === 'water-show') {
-      showPanel(msg.text, msg.sound === true);
+      handleShow(msg.sound === true, msg.showPauseHour === true);
     }
   });
 })();

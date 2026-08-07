@@ -92,14 +92,16 @@
 
 ## 5. V2 增强需求（防打扰）
 
-| 场景 | 处理方式 |
-|---|---|
-| 全屏（视频/PPT） | 检测到 `document.fullscreenElement`，不弹；退出全屏 10 秒后再弹 |
-| 正在输入 | 焦点在 `input/textarea/[contenteditable]` 时，延迟 1 分钟后重试 |
-| 频繁稍后 | 15 分钟内连续「稍后」≥ 3 次，面板多一行「看起来不方便？点『暂停 1 小时』」 |
-| 白名单网站 | 指定域名（如 youtube.com）自动暂停提醒 |
-| 每日静音时段 | 设定时间段内不提醒 |
-| 统计面板 | popup 显示今日 提醒/稍后/关闭 次数 |
+> 实现状态：**V2 已全部实现**（2026-08-06）。存储契约新增：`water-settings` 增 `quietEnabled/quietStart/quietEnd`；`water-whitelist`（sync 域名数组）；`water-stats`（local 今日 提醒/稍后/关闭，跨天重置）；`water-snooze-log`（local 稍后 15 分钟滑窗）；`water-runtime.mode` 增 `retry/pause`。
+
+| 场景 | 处理方式 | 实现要点 |
+|---|---|---|
+| 全屏（视频/PPT） | 检测到 `document.fullscreenElement`，不弹；退出全屏 10 秒后再弹 | content-reminder.js 自行监听 `fullscreenchange`，退出后 10s 渲染；期间再进全屏则重置等待 |
+| 正在输入 | 焦点在 `input/textarea/[contenteditable]` 时，延迟 1 分钟后重试 | content 回传 `water-defer:input`，后台建 1 分钟单次 `retry` alarm |
+| 频繁稍后 | 15 分钟内连续「稍后」≥ 3 次，面板多一行「看起来不方便？点『暂停 1 小时』」 | 后台 `water-snooze-log` 滑窗计数，达阈值时 `water-show` 带 `showPauseHour`；点击回传 `water-pause-1h` 建 60 分钟 `pause` alarm，到点恢复周期 |
+| 白名单网站 | 指定域名（如 youtube.com）自动暂停提醒 | 后台 `fireReminder` 查活动页 host，子域名匹配命中则跳过本次；popup textarea 每行一个域名 |
+| 每日静音时段 | 设定时间段内不提醒 | 后台 `inQuietHours()` 支持跨午夜（22:00–08:00）；popup 开关 + 起止时间 |
+| 统计面板 | popup 显示今日 提醒/稍后/关闭 次数 | 后台 `bumpStat`（浮层回传 `water-shown` 或通知成功→remind；snooze/dismiss 同理），popup 读 `water-stats` 并随 `storage.onChanged` 实时刷新 |
 
 ## 6. V1 交互流程
 

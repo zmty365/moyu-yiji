@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!--
+  喝水提醒 · 离屏音频宿主（offscreen document）
+
+  MV3 的 Service Worker 无 DOM、无法播放音频；而 content script 在宿主网页里播 WebAudio
+  会被浏览器自动播放策略拦截（需用户手势）。offscreen document 是扩展自有页面，以
+  reason=AUDIO_PLAYBACK 创建，可在无宿主页手势的情况下播放提示音，从而彻底解决
+  「提醒时听不到声音」与控制台 AudioContext 警告问题。
+
+  由 js/water-reminder.js 通过 chrome.offscreen.createDocument 创建，收到
+  { target:'offscreen', type:'water-ding' } 消息后合成并播放极短「叮咚」。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>water reminder audio</title>
+</head>
+<body>
+  <script src="js/offscreen.js"></script>
+</body>
+</html>
