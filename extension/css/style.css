@@ -885,8 +885,19 @@ button {
    只保留今日宜忌 / 今日账本 / 紧凑计时器三块 + 一个打开完整页按钮，
    窄高设计，一眼看全。
    ============================================================ */
+html.popup-html {
+  width: 360px;
+  min-width: 360px;
+  max-width: 360px;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
 .popup-body {
   width: 360px;
+  min-width: 360px;
+  max-width: 360px;
+  margin: 0;
   height: auto;
   min-height: 420px;
   max-height: 600px;

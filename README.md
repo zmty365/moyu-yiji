@@ -1,6 +1,6 @@
 # 宜忌月历 · 摸鱼账本
 
-一个趣味日历应用——每天给你生成专属「宜/忌」，还能记录摸鱼时长、折算成时薪入账。支持网页版和 Chrome 扩展两种使用方式。
+一个趣味日历应用——每天给你生成专属「宜/忌」，还能记录摸鱼时长、折算成时薪入账；Chrome 扩展版还会在你久坐到点时温柔提醒喝口水、起身活动。支持网页版和 Chrome 扩展两种使用方式。
 
 ![宜忌日历](./assets/screenshots/宜忌日历.png)
 
@@ -13,6 +13,7 @@
 - **摸鱼计时器**：三态状态机（idle → running → paused），基于真实时间戳累计，金额 = 时薪 × 秒数 / 3600
 - **薪资模型**：支持手填时薪，或按「月薪 ÷ 工作天数 ÷ 日时长」推算等效时薪
 - **今日金句**：每天一条猫/鱼/躺平梗，按日期确定性选取
+- **喝水提醒**（仅扩展版）：久坐到点温柔提醒你喝口水、起身活动；支持自定义间隔、静音时段、网站白名单与提示音，全屏看视频/PPT 或正在输入时自动延后弹出
 
 ## 项目结构
 
@@ -37,13 +38,17 @@ moyu-yiji/
 │   ├── generateYiji.ts     # 核心生成逻辑
 │   └── __tests__/          # 单元测试
 └── extension/              # Chrome 扩展（Manifest V3）
-    ├── manifest.json       # 扩展配置（storage + alarms 权限）
-    ├── popup.html           # 简洁小窗（今日宜忌 + 账本 + 计时器）
+    ├── manifest.json       # 扩展配置（storage / alarms / notifications / scripting / offscreen 等权限）
+    ├── popup.html           # 简洁小窗（今日宜忌 + 账本 + 计时器 + 喝水提醒设置）
     ├── full.html            # 完整月历页（新标签页打开）
+    ├── offscreen.html       # 离屏页（稳定播放喝水提醒提示音）
     ├── icons/               # 16/32/48/128 PNG 图标
     ├── css/                 # 扩展专用样式（含小窗覆盖层）
     ├── js/
     │   ├── background.js    # Service Worker（后台持续计时 + 关浏览器自动暂停）
+    │   ├── water-reminder.js    # 喝水提醒后台（alarms 调度 + 注入浮层 + 今日统计）
+    │   ├── content-reminder.js  # 注入宿主网页的提醒浮层（防打扰：全屏/输入时延后）
+    │   ├── offscreen.js         # 离屏音频脚本（播放提醒提示音）
     │   ├── mini.js          # 小窗装配 + chrome.storage 适配
     │   ├── popup.js         # 完整页装配 + chrome.storage 适配
     │   ├── calendar-tooltip.js  # 日期悬浮窗
