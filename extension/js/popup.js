@@ -363,6 +363,35 @@
       }
     }
     calGrid.innerHTML = cells;
+    renderMonthSummary(y, m);
+  }
+
+  // 当月汇总：遍历当月所有日期的 moyu-log，累加秒数 / 金额。
+  function renderMonthSummary(year, month) {
+    var summaryTime = document.getElementById('cal-summary-time');
+    var summaryAmount = document.getElementById('cal-summary-amount');
+    if (!summaryTime || !summaryAmount) return;
+
+    var rate = effectiveRate(settings);
+    var totalSecs = 0;
+    var lastDay = new Date(year, month, 0).getDate();
+    for (var d = 1; d <= lastDay; d++) {
+      totalSecs += LogStore.get(toDateStr(year, month, d));
+    }
+
+    // 如果当前月包含今天，且计时器正在运行，用实时总量覆盖今天的数据
+    var today = todayStr();
+    var tParts = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(today);
+    if (tParts) {
+      var tY = parseInt(tParts[1], 10);
+      var tM = parseInt(tParts[2], 10);
+      if (tY === year && tM === month && timer && timer.status === 'running') {
+        totalSecs = totalSecs - LogStore.get(today) + timer.getSeconds();
+      }
+    }
+
+    summaryTime.textContent = formatClock(totalSecs);
+    summaryAmount.textContent = (rate * totalSecs / 3600).toFixed(2) + ' 元';
   }
 
   // ---- 设置面板 ----

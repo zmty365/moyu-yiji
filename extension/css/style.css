@@ -334,6 +334,68 @@ button {
   padding-bottom: 4px;
 }
 
+/* 月汇总卡片 —— 独立于月历网格，不继承 .calendar-wrap 的字体/间距 */
+.month-summary {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 14px 24px;
+  border-radius: 16px;
+  background: linear-gradient(105deg, #fffdf4 0%, #faf0d8 100%);
+  border: 1px solid #e0c88e;
+  box-shadow: 0 6px 20px rgba(120, 80, 30, 0.12);
+  font-size: 18px;
+  font-weight: 700;
+  color: #3a3328;
+}
+.month-summary-label {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #7a140e;
+  font-size: 18px;
+}
+.month-summary-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.month-summary-k {
+  font-size: 15px;
+  color: #a0885a;
+  font-weight: 600;
+}
+.month-summary-item b {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #b15f0e;
+  min-width: 0;
+}
+
+/* 右侧猫鱼小装饰 */
+.month-summary-deco {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.summary-mascot {
+  width: 36px;
+  height: 36px;
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+.summary-mascot:hover {
+  opacity: 1;
+}
+.summary-cat {
+  transform: translateY(-2px);
+}
+.summary-fish {
+  transform: translateY(2px);
+}
+
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
