@@ -941,3 +941,98 @@ button {
   .time-text { font-size: 32px; }
   .settings-body { padding: 16px; }
 }
+
+/* —— 成就墙 —— */
+.achievements {
+  margin-top: 22px;
+  background: rgba(255, 253, 244, 0.92);
+  border: 1px solid rgba(208, 178, 113, 0.72);
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: 0 18px 40px rgba(80, 52, 20, 0.10);
+}
+.achievements-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.achievements-kicker {
+  display: block;
+  color: #a06b24;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+}
+.achievements h2 {
+  margin: 4px 0 0;
+  color: #6f3f18;
+  font-size: 24px;
+}
+.achievements-count {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #fff5d8;
+  color: #8b5a18;
+  font-weight: 800;
+}
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+.achievement-card {
+  border: 1px solid rgba(208, 178, 113, 0.58);
+  border-radius: 18px;
+  padding: 14px;
+  background: linear-gradient(180deg, #fffdf7, #fff7df);
+  color: #7a5b2e;
+}
+.achievement-card.is-locked {
+  opacity: 0.62;
+  filter: saturate(0.72);
+}
+.achievement-top {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.achievement-icon { font-size: 28px; line-height: 1; }
+.achievement-title { margin: 0; color: #6f3f18; font-size: 15px; }
+.achievement-desc { margin: 5px 0 0; font-size: 12px; color: #8d754c; }
+.achievement-flavor { margin: 10px 0 0; font-size: 12px; line-height: 1.55; color: #9a6b31; }
+.achievement-progress {
+  margin-top: 10px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(160, 107, 36, 0.15);
+  overflow: hidden;
+}
+.achievement-progress i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f0a43a, #cf4c35);
+}
+.achievement-state {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #a0885a;
+}
+.achievement-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 20;
+  max-width: 320px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #fff8df;
+  border: 1px solid #d8ad5c;
+  box-shadow: 0 16px 36px rgba(80, 52, 20, 0.18);
+  color: #6f3f18;
+  animation: pop-in 0.25s ease both;
+}

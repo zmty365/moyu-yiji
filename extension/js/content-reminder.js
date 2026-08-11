@@ -175,6 +175,53 @@
     sendBg('water-shown', { sound: sound === true });
   }
 
+  function showAchievementPanel(item) {
+    removePanel();
+    item = item && typeof item === 'object' ? item : {};
+
+    var host = document.createElement('div');
+    host.id = HOST_ID;
+    host.style.cssText = [
+      'position:fixed', 'right:20px', 'bottom:20px',
+      'z-index:2147483647', 'width:320px', 'margin:0', 'padding:0', 'border:0'
+    ].join(' !important;') + ' !important;';
+
+    var shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML =
+      '<style>' +
+      ':host{all:initial;}' +
+      '*{box-sizing:border-box;margin:0;padding:0;}' +
+      '.wr-card{position:relative;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;width:320px;background:linear-gradient(180deg,#fffdf4,#fff1cc);border:1px solid #e2bd67;border-radius:16px;box-shadow:0 10px 28px rgba(122,91,46,.24);padding:0 0 14px;color:#3a3328;animation:wr-in .26s cubic-bezier(.2,.9,.3,1.2);}' +
+      '@keyframes wr-in{from{opacity:0;transform:translateY(16px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}' +
+      '.wr-scene{position:relative;height:64px;background:linear-gradient(180deg,#ffe6a8,#ffd18a);overflow:hidden;border-bottom:1px solid #ecc577;}' +
+      '.wr-medal{position:absolute;left:18px;bottom:10px;font-size:36px;line-height:1;animation:wr-bounce 1.8s ease-in-out infinite;}' +
+      '@keyframes wr-bounce{0%,100%{transform:translateY(0) rotate(-5deg);}50%{transform:translateY(-5px) rotate(5deg);}}' +
+      '.wr-fish{position:absolute;right:20px;bottom:12px;font-size:26px;}' +
+      '.wr-spark{position:absolute;color:#fff;font-size:16px;animation:wr-rise 2.6s ease-in infinite;}.s1{left:48%;bottom:12px}.s2{left:68%;bottom:4px;animation-delay:.7s}.s3{left:82%;bottom:18px;animation-delay:1.1s}' +
+      '@keyframes wr-rise{0%{transform:translateY(8px) scale(.8);opacity:0;}20%{opacity:.95;}100%{transform:translateY(-44px) scale(1.1);opacity:0;}}' +
+      '.wr-body{padding:13px 16px 0;}' +
+      '.wr-kicker{font-size:12px;color:#a06b24;letter-spacing:.12em;font-weight:700;}' +
+      '.wr-title{font-size:17px;font-weight:800;color:#7a4a15;line-height:1.4;margin:5px 0 6px;}' +
+      '.wr-text{font-size:13px;color:#8d754c;line-height:1.55;margin:0 0 8px;}' +
+      '.wr-flavor{font-size:13px;color:#9a6b31;line-height:1.55;margin:0 0 12px;}' +
+      '.wr-btns{display:flex;gap:8px;padding:0 16px;}' +
+      '.wr-btn{flex:1;cursor:pointer;border-radius:11px;padding:9px 0;font-size:13px;font-weight:700;border:1px solid #d8c49a;transition:transform .12s ease,filter .12s ease;}' +
+      '.wr-btn:hover{transform:translateY(-1px);filter:brightness(1.04);}' +
+      '.wr-dismiss{background:linear-gradient(135deg,#f0a43a,#cf4c35);color:#fff;border-color:transparent;}' +
+      '</style>' +
+      '<div class="wr-card" role="dialog" aria-label="成就解锁">' +
+      '<div class="wr-scene"><span class="wr-spark s1">✨</span><span class="wr-spark s2">✨</span><span class="wr-spark s3">✨</span><span class="wr-medal">' + (item.icon || '🏅') + '</span><span class="wr-fish">🐟</span></div>' +
+      '<div class="wr-body"><div class="wr-kicker">🏅 解锁成就</div><div class="wr-title" id="wr-ach-title"></div><p class="wr-text" id="wr-ach-desc"></p><p class="wr-flavor" id="wr-ach-flavor"></p></div>' +
+      '<div class="wr-btns"><button class="wr-btn wr-dismiss" id="wr-ach-close" type="button">收下这份荣誉</button></div>' +
+      '</div>';
+
+    shadow.getElementById('wr-ach-title').textContent = item.title || '新的摸鱼成就';
+    shadow.getElementById('wr-ach-desc').textContent = item.description || '';
+    shadow.getElementById('wr-ach-flavor').textContent = item.flavorText || '';
+    shadow.getElementById('wr-ach-close').addEventListener('click', removePanel);
+    (document.body || document.documentElement).appendChild(host);
+  }
+
   // 是否正在输入（焦点在可编辑元素）。
   function isTyping() {
     var el = document.activeElement;
@@ -230,6 +277,8 @@
   chrome.runtime.onMessage.addListener(function (msg) {
     if (msg && msg.type === 'water-show') {
       handleShow(msg.sound === true, msg.showPauseHour === true, typeof msg.text === 'string' ? msg.text : '');
+    } else if (msg && msg.type === 'achievement-show') {
+      showAchievementPanel(msg.achievement);
     }
   });
 })();

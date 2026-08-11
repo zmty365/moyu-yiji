@@ -16,6 +16,7 @@
   // localStorage 键
   var KEY_PREFIX_LOG = 'moyu-log:';          // moyu-log:YYYY-MM-DD -> 当日摸鱼累计秒数
   var KEY_SETTINGS = 'moyu-settings';        // 薪资模型设置对象
+  var KEY_ACHIEVEMENTS = 'moyu-achievements'; // 已解锁成就（仅摸鱼类）
 
   var WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
   var MONTHS_CN = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
@@ -136,6 +137,87 @@
       }
     }
   };
+
+  // ============================================================
+  // 成就存取与渲染（网页版只启用摸鱼类，喝水类隐藏）
+  // ============================================================
+  function readAchievementState() {
+    try {
+      var raw = localStorage.getItem(KEY_ACHIEVEMENTS);
+      return raw ? JSON.parse(raw) : { unlocked: {} };
+    } catch (e) {
+      return { unlocked: {} };
+    }
+  }
+
+  function saveAchievementState(state) {
+    try { localStorage.setItem(KEY_ACHIEVEMENTS, JSON.stringify(state || { unlocked: {} })); } catch (e) { /* ignore */ }
+  }
+
+  function readMoyuLogs() {
+    var logs = {};
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var key = localStorage.key(i);
+        if (key && key.indexOf(KEY_PREFIX_LOG) === 0) {
+          logs[key.slice(KEY_PREFIX_LOG.length)] = localStorage.getItem(key);
+        }
+      }
+    } catch (e) { /* ignore */ }
+    return logs;
+  }
+
+  function achievementSnapshot() {
+    return MoyuAchievementEngine.snapshotFromLogs(readMoyuLogs(), null);
+  }
+
+  function renderAchievements() {
+    var grid = document.getElementById('achievements-grid');
+    var count = document.getElementById('achievements-count');
+    if (!grid || !count || !window.MoyuAchievements || !window.MoyuAchievementEngine) { return; }
+    var state = readAchievementState();
+    var entries = MoyuAchievementEngine.evaluate(MoyuAchievements.list, state, achievementSnapshot(), {
+      includeWater: false,
+      dailyBetweenMode: 'deferred'
+    });
+    var unlockedCount = entries.filter(function (entry) { return entry.unlocked; }).length;
+    count.textContent = unlockedCount + ' / ' + entries.length;
+    grid.innerHTML = entries.map(function (entry) {
+      var item = entry.achievement;
+      var pct = Math.round((entry.progress.ratio || 0) * 100);
+      return '<article class="achievement-card ' + (entry.unlocked ? 'is-unlocked' : 'is-locked') + '">' +
+        '<div class="achievement-top"><span class="achievement-icon">' + item.icon + '</span><div>' +
+        '<h3 class="achievement-title">' + item.title + '</h3>' +
+        '<p class="achievement-desc">' + item.description + '</p></div></div>' +
+        '<p class="achievement-flavor">' + item.flavorText + '</p>' +
+        '<div class="achievement-progress"><i style="width:' + pct + '%"></i></div>' +
+        '<span class="achievement-state">' + (entry.unlocked ? '已解锁' : '进度 ' + pct + '%') + '</span>' +
+        '</article>';
+    }).join('');
+  }
+
+  function showAchievementToast(items) {
+    if (!items || !items.length) { return; }
+    var item = items[0];
+    var el = document.createElement('div');
+    el.className = 'achievement-toast';
+    el.innerHTML = '<strong>🏅 解锁成就：' + item.title + '</strong><br><span>' + item.flavorText + '</span>';
+    document.body.appendChild(el);
+    setTimeout(function () { if (el.parentNode) { el.parentNode.removeChild(el); } }, 4200);
+  }
+
+  function checkAchievements(showToast) {
+    if (!window.MoyuAchievements || !window.MoyuAchievementEngine) { return; }
+    var result = MoyuAchievementEngine.unlockNew(MoyuAchievements.list, readAchievementState(), achievementSnapshot(), {
+      includeWater: false,
+      dailyBetweenMode: 'deferred'
+    });
+    if (result.newlyUnlocked.length) {
+      saveAchievementState(result.state);
+      if (showToast) { showAchievementToast(result.newlyUnlocked); }
+    }
+    renderAchievements();
+  }
 
   // ============================================================
   // 薪资模型设置存取 + 计算
@@ -691,6 +773,7 @@
   sanitizePollutedToday();
   fillSettingsForm();
   renderMonth();
+  renderAchievements();
 
   // 今日金句（按日期固定）。
   if (fortuneText) {
@@ -716,6 +799,7 @@
     settlePending();
     timer.pause();
     renderMonth();
+    checkAchievements(true);
   });
   document.getElementById('btn-resume').addEventListener('click', function () {
     timer.resume();
@@ -737,6 +821,7 @@
       // 每 tick 都重绘月历：让"今日"格子与计时器/今日已摸同 tick 取同一唯一源，秒级严格相等。
       renderMonth();
       renderTimer();
+      renderAchievements();
     }
   }, 1000);
 
