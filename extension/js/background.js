@@ -18,6 +18,7 @@
 // 注意：importScripts 的相对路径基于 SW 脚本自身位置（/js/background.js），
 // 用相对扩展根的绝对路径 '/js/water-reminder.js' 才能正确解析。
 try {
+  importScripts('/js/achievements.js', '/js/achievement-engine.js');
   importScripts('/js/water-reminder.js');
 } catch (e) {
   // 提醒模块加载失败不影响摸鱼计时核心，但需暴露到控制台便于排查。
@@ -29,6 +30,9 @@ try {
 
   var KEY_PREFIX_LOG = 'moyu-log:';
   var KEY_TIMER = 'moyu-timer-state';
+  var KEY_ACHIEVEMENTS = 'moyu-achievements';
+  var KEY_WATER_STATS = 'water-stats';
+  var KEY_WATER_TOTAL = 'water-total-dismiss';
 
   // running 状态判定为"浏览器仍在"的阈值：alive 距 now 超过该值即认为 SW 已随浏览器关闭。
   var STALE_ALIVE_MS = 5 * 60 * 1000; // 5 分钟（远大于 alarm 周期 1 分钟）
@@ -132,12 +136,117 @@ try {
     chrome.alarms.create(ALARM_NAME, { periodInMinutes: ALARM_PERIOD_MIN });
   }
 
+  function readAchievementInputs(cb) {
+    chrome.storage.local.get(null, function (obj) {
+      obj = obj || {};
+      var logs = {};
+      Object.keys(obj).forEach(function (key) {
+        if (key.indexOf(KEY_PREFIX_LOG) === 0) {
+          logs[key.slice(KEY_PREFIX_LOG.length)] = obj[key];
+        }
+      });
+      var stats = obj[KEY_WATER_STATS] && typeof obj[KEY_WATER_STATS] === 'object' ? obj[KEY_WATER_STATS] : null;
+      cb(obj[KEY_ACHIEVEMENTS] || { unlocked: {} }, logs, {
+        dailyDismiss: stats && stats.date === todayStr() ? stats.dismiss : 0,
+        totalDismiss: obj[KEY_WATER_TOTAL]
+      });
+    });
+  }
+
+  function notifyAchievement(item) {
+    findInjectableTab(function (tab) {
+      if (!tab) { fallbackAchievementNotify(item); return; }
+      chrome.scripting.executeScript(
+        { target: { tabId: tab.id }, files: ['js/content-reminder.js'] },
+        function () {
+          if (!chrome.runtime.lastError) {
+            chrome.tabs.sendMessage(tab.id, { type: 'achievement-show', achievement: item }, function () { void chrome.runtime.lastError; });
+            return;
+          }
+          fallbackAchievementNotify(item);
+        }
+      );
+    });
+  }
+
+  function canInjectAchievement(url) {
+    return typeof url === 'string' && (/^https?:/i.test(url) || /^file:/i.test(url));
+  }
+
+  function firstInjectable(tabs) {
+    tabs = Array.isArray(tabs) ? tabs : [];
+    for (var i = 0; i < tabs.length; i++) {
+      if (tabs[i] && tabs[i].id != null && canInjectAchievement(tabs[i].url || '')) {
+        return tabs[i];
+      }
+    }
+    return null;
+  }
+
+  function findInjectableTab(cb) {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
+      var tab = firstInjectable(tabs);
+      if (tab) { cb(tab); return; }
+      chrome.tabs.query({ active: true, currentWindow: true }, function (currentTabs) {
+        tab = firstInjectable(currentTabs);
+        if (tab) { cb(tab); return; }
+        chrome.tabs.query({ active: true }, function (activeTabs) {
+          cb(firstInjectable(activeTabs));
+        });
+      });
+    });
+  }
+
+  function fallbackAchievementNotify(item) {
+    try {
+      chrome.notifications.create('moyu-achievement-' + item.id + '-' + Date.now(), {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+        title: '解锁成就：' + item.title,
+        message: item.flavorText || item.description,
+        priority: 1
+      }, function () { void chrome.runtime.lastError; });
+    } catch (e) { /* ignore */ }
+  }
+
+  function checkAchievements(reason, cb) {
+    if (!self.MoyuAchievements || !self.MoyuAchievementEngine) { if (cb) { cb([]); } return; }
+    readAchievementInputs(function (state, logs, water) {
+      var snapshot = MoyuAchievementEngine.snapshotFromLogs(logs, water);
+      var result = MoyuAchievementEngine.unlockNew(MoyuAchievements.list, state, snapshot, {
+        includeWater: true,
+        dailyBetweenMode: 'deferred'
+      });
+      if (!result.newlyUnlocked.length) { if (cb) { cb([]); } return; }
+      var o = {}; o[KEY_ACHIEVEMENTS] = result.state;
+      chrome.storage.local.set(o, function () {
+        result.newlyUnlocked.forEach(notifyAchievement);
+        if (cb) { cb(result.newlyUnlocked); }
+      });
+    });
+  }
+
+  self.MoyuCheckAchievements = checkAchievements;
+
   chrome.runtime.onInstalled.addListener(createAlarm);
   chrome.runtime.onStartup.addListener(createAlarm);
   chrome.alarms.onAlarm.addListener(function (alarm) {
     if (alarm && alarm.name === ALARM_NAME) {
       bgTick();
     }
+  });
+
+  chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+    if (!msg || typeof msg !== 'object' || msg.type !== 'achievement-check') { return; }
+    checkAchievements(msg.reason || 'manual', function (items) {
+      sendResponse({
+        ok: true,
+        unlocked: items.map(function (item) {
+          return { id: item.id, title: item.title, description: item.description, flavorText: item.flavorText, icon: item.icon };
+        })
+      });
+    });
+    return true;
   });
 
   // 浏览器启动时也趁机推进一次（onStartup 后 SW 短暂存活，可立即补账）。

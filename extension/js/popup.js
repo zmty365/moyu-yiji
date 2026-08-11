@@ -21,9 +21,75 @@
   var KEY_PREFIX_LOG = 'moyu-log:';            // moyu-log:YYYY-MM-DD -> 当日摸鱼累计秒数
   var KEY_SETTINGS = 'moyu-settings';          // 薪资模型设置对象
   var KEY_TIMER = 'moyu-timer-state';          // 计时器上下文（状态+累计+基准时间戳）
+  var KEY_ACHIEVEMENTS = 'moyu-achievements';  // 已解锁成就
+  var KEY_WATER_STATS = 'water-stats';         // 今日喝水统计
+  var KEY_WATER_TOTAL = 'water-total-dismiss'; // 点击关闭的累计次数
 
   var WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
   var MONTHS_CN = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
+
+  function renderAchievementsFromData(data) {
+    var grid = document.getElementById('achievements-grid');
+    var count = document.getElementById('achievements-count');
+    if (!grid || !count || !window.MoyuAchievements || !window.MoyuAchievementEngine) { return; }
+    data = data || {};
+    var logs = {};
+    Object.keys(data).forEach(function (key) {
+      if (key.indexOf(KEY_PREFIX_LOG) === 0) {
+        logs[key.slice(KEY_PREFIX_LOG.length)] = data[key];
+      }
+    });
+    var stats = data[KEY_WATER_STATS] && typeof data[KEY_WATER_STATS] === 'object' ? data[KEY_WATER_STATS] : null;
+    var snapshot = MoyuAchievementEngine.snapshotFromLogs(logs, {
+      dailyDismiss: stats && stats.date === todayStr() ? stats.dismiss : 0,
+      totalDismiss: data[KEY_WATER_TOTAL]
+    });
+    var entries = MoyuAchievementEngine.evaluate(MoyuAchievements.list, data[KEY_ACHIEVEMENTS] || { unlocked: {} }, snapshot, {
+      includeWater: true,
+      dailyBetweenMode: 'deferred'
+    });
+    var unlockedCount = entries.filter(function (entry) { return entry.unlocked; }).length;
+    count.textContent = unlockedCount + ' / ' + entries.length;
+    grid.innerHTML = entries.map(function (entry) {
+      var item = entry.achievement;
+      var pct = Math.round((entry.progress.ratio || 0) * 100);
+      return '<article class="achievement-card ' + (entry.unlocked ? 'is-unlocked' : 'is-locked') + '">' +
+        '<div class="achievement-top"><span class="achievement-icon">' + item.icon + '</span><div>' +
+        '<h3 class="achievement-title">' + item.title + '</h3>' +
+        '<p class="achievement-desc">' + item.description + '</p></div></div>' +
+        '<p class="achievement-flavor">' + item.flavorText + '</p>' +
+        '<div class="achievement-progress"><i style="width:' + pct + '%"></i></div>' +
+        '<span class="achievement-state">' + (entry.unlocked ? '已解锁' : '进度 ' + pct + '%') + '</span>' +
+        '</article>';
+    }).join('');
+  }
+
+  function refreshAchievements() {
+    if (!document.getElementById('achievements-grid')) { return; }
+    chrome.storage.local.get(null, renderAchievementsFromData);
+  }
+
+  function requestAchievementCheck(reason) {
+    try {
+      chrome.runtime.sendMessage({ type: 'achievement-check', reason: reason }, function (response) {
+        void chrome.runtime.lastError;
+        if (response && Array.isArray(response.unlocked) && response.unlocked.length) {
+          showAchievementToast(response.unlocked);
+        }
+        refreshAchievements();
+      });
+    } catch (e) { refreshAchievements(); }
+  }
+
+  function showAchievementToast(items) {
+    if (!items || !items.length || !document.body) { return; }
+    var item = items[0];
+    var el = document.createElement('div');
+    el.className = 'achievement-toast';
+    el.innerHTML = '<strong>🏅 解锁成就：' + item.title + '</strong><br><span>' + (item.flavorText || item.description || '') + '</span>';
+    document.body.appendChild(el);
+    setTimeout(function () { if (el.parentNode) { el.parentNode.removeChild(el); } }, 4200);
+  }
 
   // ---- 金句池（同网页版） ----
   var FORTUNE_POOL = [
@@ -833,6 +899,7 @@
     sanitizePollutedToday();
     fillSettingsForm();
     renderMonth();
+    refreshAchievements();
 
     // 一次性绑定按钮事件
     document.getElementById('btn-start').addEventListener('click', function () {
@@ -848,6 +915,7 @@
       LogStore.commit(todayStr(), timer.getSeconds());
       timer.pause();
       renderMonth();
+      setTimeout(function () { requestAchievementCheck('moyu-pause'); }, 80);
     });
     document.getElementById('btn-resume').addEventListener('click', function () {
       autoPausedNotice = false;

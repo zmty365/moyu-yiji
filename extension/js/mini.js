@@ -518,6 +518,9 @@
     document.getElementById('btn-pause').addEventListener('click', function () {
       LogStore.commit(todayStr(), timer.getSeconds());
       timer.pause();
+      setTimeout(function () {
+        try { chrome.runtime.sendMessage({ type: 'achievement-check', reason: 'moyu-pause' }, function () { void chrome.runtime.lastError; }); } catch (e) { /* ignore */ }
+      }, 80);
     });
     document.getElementById('btn-resume').addEventListener('click', function () {
       autoPausedNotice = false;

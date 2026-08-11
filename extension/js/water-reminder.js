@@ -29,6 +29,7 @@
   var KEY_WHITELIST = 'water-whitelist';   // storage.sync
   var KEY_RUNTIME = 'water-runtime';       // storage.local
   var KEY_STATS = 'water-stats';           // storage.local
+  var KEY_WATER_TOTAL = 'water-total-dismiss'; // storage.local，用户点击关闭的累计次数
   var KEY_SNOOZE_LOG = 'water-snooze-log'; // storage.local
   var KEY_LAST_MSG = 'water-last-item';    // storage.local，上次弹出的文案，用于避免连续重复
 
@@ -185,6 +186,14 @@
       else if (kind === 'dismiss') { s.dismiss = (s.dismiss || 0) + 1; }
       var o = {}; o[KEY_STATS] = s;
       try { chrome.storage.local.set(o, function () { void chrome.runtime.lastError; }); } catch (e) { /* 忽略 */ }
+    });
+  }
+
+  function bumpWaterTotalDismiss(cb) {
+    chrome.storage.local.get(KEY_WATER_TOTAL, function (obj) {
+      var prev = obj && typeof obj[KEY_WATER_TOTAL] === 'number' && isFinite(obj[KEY_WATER_TOTAL]) ? obj[KEY_WATER_TOTAL] : 0;
+      var o = {}; o[KEY_WATER_TOTAL] = prev + 1;
+      try { chrome.storage.local.set(o, function () { if (cb) { cb(); } }); } catch (e) { if (cb) { cb(); } }
     });
   }
 
@@ -347,6 +356,11 @@
   // 「关闭」：结束本次，清稍后频次，按原间隔重建周期。
   function onDismiss() {
     bumpStat('dismiss');
+    bumpWaterTotalDismiss(function () {
+      if (typeof globalThis.MoyuCheckAchievements === 'function') {
+        globalThis.MoyuCheckAchievements('water-dismiss');
+      }
+    });
     clearSnoozeLog();
     getSettings(function (s) {
       if (s.enabled) { schedulePeriodic(s.intervalMin); } else { stopAll(); }
