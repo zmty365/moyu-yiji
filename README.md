@@ -13,6 +13,7 @@
 - **摸鱼计时器**：三态状态机（idle → running → paused），基于真实时间戳累计，金额 = 时薪 × 秒数 / 3600
 - **薪资模型**：支持手填时薪，或按「月薪 ÷ 工作天数 ÷ 日时长」推算等效时薪
 - **今日金句**：每天一条猫/鱼/躺平梗，按日期确定性选取
+- **成就系统**：把摸鱼与喝水行为变成可解锁的趣味成就，达标自动解锁并弹出提示；网页版仅启用摸鱼类成就，喝水类成就仅扩展版可见
 - **喝水提醒**（仅扩展版）：久坐到点温柔提醒你喝口水、起身活动；支持自定义间隔、静音时段、网站白名单与提示音，全屏看视频/PPT 或正在输入时自动延后弹出
 
 ## 项目结构
@@ -24,7 +25,9 @@ moyu-yiji/
 │   ├── style.css           # 主样式（月历画风）
 │   └── mascots.css         # 猫/鱼吉祥物动画
 ├── js/
-│   ├── app.js              # 网页版主逻辑（月历网格 + 摸鱼账本 + 计时器 + 薪资设置）
+│   ├── app.js              # 网页版主逻辑（月历网格 + 摸鱼账本 + 计时器 + 薪资设置 + 成就）
+│   ├── achievements.js     # 成就定义（清单 + 分类）
+│   ├── achievement-engine.js   # 成就判断引擎（统计快照 / 进度 / 解锁判断）
 │   ├── moyu-timer.js       # 摸鱼计时器状态机（idle / running / paused）
 │   └── yiji-data.js        # 宜忌数据生成（按日期可复现的 PRNG）
 ├── assets/
@@ -51,6 +54,8 @@ moyu-yiji/
     │   ├── offscreen.js         # 离屏音频脚本（播放提醒提示音）
     │   ├── mini.js          # 小窗装配 + chrome.storage 适配
     │   ├── popup.js         # 完整页装配 + chrome.storage 适配
+    │   ├── achievements.js      # 成就定义（同网页版）
+    │   ├── achievement-engine.js # 成就判断引擎（同网页版）
     │   ├── calendar-tooltip.js  # 日期悬浮窗
     │   ├── moyu-timer.js    # 计时器（同网页版）
     │   └── yiji-data.js     # 宜忌数据（同网页版）
@@ -123,6 +128,15 @@ idle ──start──▶ running ──pause──▶ paused
 - 扩展版通过 Service Worker + `chrome.alarms` 实现后台持续计时
 - 关闭浏览器后再次打开，若检测到计时器状态过期则自动暂停
 
+### 成就系统
+
+成就分为**定义**与**判断**两层，均与存储/DOM 解耦，网页版和扩展版共用：
+
+- `js/achievements.js` — 成就清单（初版 10 个），按累计摸鱼时长 / 摸鱼天数 / 单日摸鱼 / 喝水次数四类分类
+- `js/achievement-engine.js` — 从摸鱼日志（与喝水记录）生成统计快照，计算进度并判断解锁，不直接读写存储
+
+装配层（网页 `app.js` / 扩展 `mini.js`、`popup.js`）负责读写解锁状态、渲染卡片与弹出解锁提示。网页版无喝水数据，因此只启用摸鱼类成就，喝水类成就在网页版隐藏。
+
 ### 数据持久化
 
 **网页版**（`localStorage`）：
@@ -131,6 +145,7 @@ idle ──start──▶ running ──pause──▶ paused
 |----|------|
 | `moyu-log:YYYY-MM-DD` | 当日摸鱼累计秒数 |
 | `moyu-settings` | 薪资模型设置 |
+| `moyu-achievements` | 已解锁成就（仅摸鱼类）|
 
 **扩展版**（`chrome.storage.local`）：
 
@@ -139,6 +154,7 @@ idle ──start──▶ running ──pause──▶ paused
 | `moyu-log:YYYY-MM-DD` | 当日摸鱼累计秒数（max 幂等合并，不重复记） |
 | `moyu-settings` | 薪资模型：`{ hourlyRate, monthlySalary, workdays, hoursPerDay }` |
 | `moyu-timer-state` | 计时器上下文：`{ status, hourlyRate, accSeconds, startAt, lastLogged, alive }` |
+| `moyu-achievements` | 已解锁成就：`{ unlocked: { [id]: { unlockedAt } } }`（含喝水类）|
 
 > 网页版与扩展版数据域独立，互不相通。
 
