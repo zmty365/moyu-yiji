@@ -15,7 +15,6 @@
   var DAILY_PAT_LIMIT = 10;       // 每日抚摸掉币上限（PRD §6.3）
 
   // ---- 文案库 ----
-  var MOYU_BUBBLES = ['就是这样，别停 🐟', '摸得漂亮，继续 😼', '这波很稳，老板看不出来'];
   var IDLE_BUBBLES = ['哥们儿…要不摸一会儿？', '工位这么安静，不像你啊', '老板不在，良辰吉时', '闲着也是闲着，摸一把？'];
   var PAT_EGGS = ['喵，蹭到你了', '今天也要开心摸鱼哦', '别卷了，卷不动了', '这一下值一个亿（情绪价值）', '摸鱼使我快乐 🫧'];
 
@@ -46,14 +45,10 @@
     + '#moyu-pet{position:fixed;right:20px;bottom:20px;z-index:2147483646;width:110px;font-family:-apple-system,"PingFang SC",sans-serif;user-select:none;cursor:grab}'
     + '#moyu-pet.mp-dragging{cursor:grabbing}'
     + '#moyu-pet .mp-cat{display:block;margin:0 auto;transform-origin:center bottom;animation:mp-float 3.6s ease-in-out infinite}'
-    + '#moyu-pet.mp-moyu .mp-cat{animation:mp-float 1.4s ease-in-out infinite}'
     + '#moyu-pet .mp-eye{transform-origin:center;animation:mp-blink 4s ease-in-out infinite}'
     + '#moyu-pet .mp-cat:active{transform:scale(0.92)}'
     + '#moyu-pet .mp-panel{margin-top:4px;text-align:center}'
     + '#moyu-pet .mp-coin{display:inline-block;background:#fff6e5;border:1.5px solid #c49a4a;color:#8a5a1a;border-radius:12px;padding:1px 8px;font-size:12px;font-weight:600}'
-    + '#moyu-pet .mp-btn{display:block;width:100%;margin-top:5px;border:1.5px solid #3b5a4e;background:#f7efdf;color:#3b5a4e;border-radius:8px;padding:3px 0;font-size:12px;cursor:pointer}'
-    + '#moyu-pet .mp-btn:hover{background:#eadfc4}'
-    + '#moyu-pet.mp-moyu .mp-btn{background:#3b5a4e;color:#fff}'
     + '#moyu-pet .mp-bubble{position:absolute;left:50%;top:-8px;transform:translate(-50%,-100%);background:#fff;border:1.5px solid #3a3328;border-radius:10px;padding:5px 9px;font-size:12px;color:#3a3328;white-space:nowrap;max-width:200px;box-shadow:0 3px 8px rgba(0,0,0,.15);opacity:0;transition:opacity .25s;pointer-events:none}'
     + '#moyu-pet .mp-bubble.mp-show{opacity:1}'
     + '#moyu-pet .mp-toggle{position:absolute;right:-6px;top:-6px;width:20px;height:20px;border-radius:50%;border:1.5px solid #3a3328;background:#fff;color:#3a3328;font-size:12px;line-height:1;cursor:pointer;padding:0}'
@@ -72,7 +67,6 @@
     + '<div class="mp-cat">' + CAT_SVG + '</div>'
     + '<div class="mp-panel">'
     + '  <span class="mp-coin">🐟 0</span>'
-    + '  <button class="mp-btn mp-timer" type="button">开始摸鱼</button>'
     + '</div>'
     + '<button class="mp-toggle" type="button" title="收起/展开">–</button>';
   document.documentElement.appendChild(root);
@@ -80,7 +74,6 @@
   var elBubble = root.querySelector('.mp-bubble');
   var elCat = root.querySelector('.mp-cat');
   var elCoin = root.querySelector('.mp-coin');
-  var elTimer = root.querySelector('.mp-timer');
   var elToggle = root.querySelector('.mp-toggle');
 
   var isMoyu = false;   // 摸鱼态
@@ -138,19 +131,6 @@
     } catch (e) { /* 扩展上下文失效时忽略 */ }
   }
 
-  // ---- 两态切换 ----
-  function setMoyu(on) {
-    isMoyu = on;
-    root.classList.toggle('mp-moyu', on);
-    elTimer.textContent = on ? '摸鱼中…点我收工' : '开始摸鱼';
-    if (on) {
-      showBubble(pick(MOYU_BUBBLES));
-      clearInterval(idleTimer);
-    } else {
-      startIdleBubbles();
-    }
-  }
-
   // ---- 待机态反向劝摸气泡（低频，PRD §6.4）----
   function startIdleBubbles() {
     clearInterval(idleTimer);
@@ -182,8 +162,7 @@
     if (!moved) onPat(); // 未拖动视为「抚摸」
   });
 
-  // ---- 按钮 ----
-  elTimer.addEventListener('click', function () { setMoyu(!isMoyu); });
+  // ---- 收起/展开 ----
   elToggle.addEventListener('click', function () {
     var collapsed = root.classList.toggle('mp-collapsed');
     elToggle.textContent = collapsed ? '+' : '–';
