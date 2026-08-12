@@ -168,43 +168,42 @@
     } catch (e){ /* 忽略 */ }
   }
 
-  // 等级晋级曲线（SVG 折线图）：X 轴为 Lv0~Lv8，Y 轴为该级所需累计时长（门槛）。
-  // 门槛跨度极大，用 sqrt 压缩 Y 轴让曲线更平滑可辨；标出当前等级高亮点。
-  // container 为图表容器 DOM；storage 变化时刷新当前位置。
+  // 等级晋级里程碑轴（横向进度轨道，参考美团/网易云会员成长体系）：
+  // 8 个等级节点串成一条横轨，走过的点亮、当前脉冲高亮、未来灰暗；
+  // 轨道上叠一段“已达进度”彩条，直观呈现距下一级的推进程度。
+  // 每个节点下方标 Lv / 头衔 / 门槛时长 / 升级奖励币。container 为容器 DOM。
   function mountChart(container) {
     if (!container) { return; }
-
-    var W = 520, HGT = 200, PL = 40, PR = 20, PT = 24, PB = 32;
-    var innerW = W - PL - PR, innerH = HGT - PT - PB;
     var n = LEVELS.length;
-    var maxY = Math.sqrt(LEVELS[n - 1].threshold) || 1;
-
-    function px(i) { return PL + (innerW * i) / (n - 1); }
-    function py(threshold) { return PT + innerH - (Math.sqrt(threshold) / maxY) * innerH; }
 
     function render(info) {
       if (!info) { return; }
       var curLevel = info.level;
-      var pts = [];
-      for (var i = 0; i < n; i++) { pts.push(px(i) + ',' + py(LEVELS[i].threshold)); }
+      // 已达进度百分比：整段轨道均分 (n-1) 格，当前级 + 本级内 ratio 占一格。
+      var seg = 100 / (n - 1);
+      var fillPct = Math.min(100, curLevel * seg + (info.isMax ? 0 : info.ratio * seg));
 
-      var svg = '<svg viewBox="0 0 ' + W + ' ' + HGT + '" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="等级晋级曲线">';
-      // 网格基线
-      svg += '<line x1="' + PL + '" y1="' + (PT + innerH) + '" x2="' + (W - PR) + '" y2="' + (PT + innerH) + '" class="chart-axis"/>';
-      // 折线
-      svg += '<polyline class="chart-line" points="' + pts.join(' ') + '"/>';
-      // 数据点 + Lv 标签
-      for (var j = 0; j < n; j++) {
-        var cx = px(j), cy = py(LEVELS[j].threshold);
-        var cls = j < curLevel ? 'done' : (j === curLevel ? 'current' : 'locked');
-        svg += '<circle class="chart-dot ' + cls + '" cx="' + cx + '" cy="' + cy + '" r="' + (j === curLevel ? 6 : 4) + '"/>';
-        svg += '<text class="chart-xlabel" x="' + cx + '" y="' + (PT + innerH + 18) + '">Lv' + j + '</text>';
+      var html = '<div class="ms-track">';
+      html += '<div class="ms-rail"></div>';
+      html += '<div class="ms-rail-fill" style="width:' + fillPct.toFixed(1) + '%"></div>';
+      html += '<div class="ms-nodes">';
+      for (var i = 0; i < n; i++) {
+        var lv = LEVELS[i];
+        var cls = i < curLevel ? 'done' : (i === curLevel ? 'current' : 'locked');
+        var mark = i < curLevel ? '✓' : (i === curLevel ? '★' : i);
+        var rewardTxt = lv.reward > 0 ? ('🐟' + lv.reward) : '起点';
+        html += ''
+          + '<div class="ms-node ' + cls + '">'
+          +   (i === curLevel ? '<span class="ms-here">你在这里</span>' : '')
+          +   '<span class="ms-dot">' + mark + '</span>'
+          +   '<span class="ms-lv">Lv.' + lv.level + '</span>'
+          +   '<span class="ms-title">' + lv.title + '</span>'
+          +   '<span class="ms-thr">' + (lv.threshold > 0 ? humanize(lv.threshold) : '0') + '</span>'
+          +   '<span class="ms-reward">' + rewardTxt + '</span>'
+          + '</div>';
       }
-      // 当前位置文字
-      var curCx = px(curLevel), curCy = py(LEVELS[curLevel].threshold);
-      svg += '<text class="chart-here" x="' + curCx + '" y="' + (curCy - 12) + '">你在这里</text>';
-      svg += '</svg>';
-      container.innerHTML = svg;
+      html += '</div></div>';
+      container.innerHTML = html;
     }
 
     settle(function (res) { if (res) { render(res.info); } });
@@ -347,15 +346,24 @@
         + '.chart-head{margin-bottom:6px}'
         + '.chart-kicker{display:block;color:#a06b24;font-size:12px;letter-spacing:.14em}'
         + '.chart-head h2{margin:4px 0 0;color:#6f3f18;font-size:22px}'
-        + '.chart-canvas{margin-top:8px}'
-        + '.chart-axis{stroke:#e0d3b0;stroke-width:1}'
-        + '.chart-line{fill:none;stroke:#c49a4a;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}'
-        + '.chart-dot{fill:#d9c79a;stroke:#fff;stroke-width:1.5}'
-        + '.chart-dot.done{fill:#c49a4a}'
-        + '.chart-dot.current{fill:#e0964b;stroke:#8b5a18;stroke-width:2}'
-        + '.chart-dot.locked{fill:#d9d0bd}'
-        + '.chart-xlabel{fill:#a08658;font-size:11px;text-anchor:middle}'
-        + '.chart-here{fill:#8b5a18;font-size:12px;font-weight:700;text-anchor:middle}');
+        + '.chart-canvas{margin-top:18px;overflow-x:auto;padding:8px 4px 4px}'
+        + '.ms-track{position:relative;min-width:640px;padding:26px 0 6px}'
+        + '.ms-rail{position:absolute;left:5%;right:5%;top:34px;height:6px;border-radius:999px;background:#ece0c4}'
+        + '.ms-rail-fill{position:absolute;left:5%;top:34px;height:6px;border-radius:999px;max-width:90%;background:linear-gradient(90deg,#e8c064,#e0964b);box-shadow:0 2px 8px rgba(224,150,75,.4);transition:width .6s ease}'
+        + '.ms-nodes{position:relative;display:grid;grid-template-columns:repeat(9,1fr);z-index:1}'
+        + '.ms-node{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px}'
+        + '.ms-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;background:#e6dcc4;color:#a08658;border:2px solid #fff;box-shadow:0 2px 6px rgba(120,90,40,.15)}'
+        + '.ms-node.done .ms-dot{background:linear-gradient(180deg,#f0cf78,#e0b451);color:#7a4d12}'
+        + '.ms-node.current .ms-dot{background:linear-gradient(180deg,#f6a35a,#e0964b);color:#fff;border-color:#8b5a18;transform:scale(1.18);animation:ms-pulse 1.6s ease-in-out infinite}'
+        + '.ms-node.locked .ms-dot{background:#eee6d5;color:#b6ab92}'
+        + '@keyframes ms-pulse{0%,100%{box-shadow:0 0 0 0 rgba(224,150,75,.5)}50%{box-shadow:0 0 0 8px rgba(224,150,75,0)}}'
+        + '.ms-here{position:absolute;top:-24px;padding:2px 8px;border-radius:999px;background:#8b5a18;color:#fff;font-size:10px;font-weight:800;white-space:nowrap}'
+        + '.ms-lv{margin-top:4px;font-size:11px;font-weight:800;color:#8b5a18}'
+        + '.ms-title{font-size:11px;color:#6f3f18;line-height:1.2;max-width:66px}'
+        + '.ms-thr{font-size:10px;color:#a08658}'
+        + '.ms-reward{font-size:10px;font-weight:700;color:#c0812a}'
+        + '.ms-node.locked .ms-lv,.ms-node.locked .ms-title,.ms-node.locked .ms-reward{color:#b6ab92}'
+        + '.ms-node.locked .ms-thr{color:#c3b99f}');
       mountChart(el('full-chart-canvas'));
     }
 
