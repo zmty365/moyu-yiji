@@ -104,10 +104,14 @@
 
   function renderCoin() { elCoin.textContent = '🐟 ' + coin; }
 
-  function setCoin(v) {
-    coin = v;
-    renderCoin();
-    try { chrome.storage.local.set({ 'pet-coin': coin }); } catch (e) { /* 忽略 */ }
+  // 抚摸掉币走统一钱包（原子加币），避免与等级升级发币在不同上下文互相覆盖。
+  function awardCoin(gain) {
+    if (window.MoyuWallet) {
+      MoyuWallet.add(gain, function (next) { coin = next; renderCoin(); });
+    } else {
+      coin += gain; renderCoin();
+      try { chrome.storage.local.set({ 'pet-coin': coin }); } catch (e) { /* 忽略 */ }
+    }
   }
 
   // ---- 抚摸掉落（PRD §6.3：70% 掉币 / 25% 彩蛋 / 每日 10 次上限）----
@@ -123,7 +127,7 @@
         var r = Math.random();
         if (r < 0.7) {
           var gain = 1 + Math.floor(Math.random() * 3); // 1~3 币
-          setCoin(coin + gain);
+          awardCoin(gain);
           showBubble('+' + gain + ' 摸鱼币 🐟');
         } else {
           showBubble(pick(PAT_EGGS));
@@ -187,10 +191,14 @@
 
   // ---- 初始化：读币 + 启动待机气泡 ----
   try {
-    chrome.storage.local.get([K_COIN], function (o) {
-      coin = o[K_COIN] || 0;
-      renderCoin();
-    });
+    if (window.MoyuWallet) {
+      MoyuWallet.getBalance(function (v) { coin = v; renderCoin(); });
+    } else {
+      chrome.storage.local.get([K_COIN], function (o) {
+        coin = o[K_COIN] || 0;
+        renderCoin();
+      });
+    }
   } catch (e) { /* 忽略 */ }
   startIdleBubbles();
   setTimeout(function () { showBubble('嗨，我是你的摸鱼搭子 😼'); }, 1200);
