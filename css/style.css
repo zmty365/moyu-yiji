@@ -869,13 +869,6 @@ button {
   box-shadow: 0 10px 22px rgba(177, 95, 14, 0.32);
 }
 .btn-pause:hover { box-shadow: 0 12px 26px rgba(177, 95, 14, 0.38); }
-.btn-reset {
-  background: #fffdf4;
-  color: #7a5b2e;
-  border: 1px solid #d8c49a;
-  box-shadow: 0 4px 10px rgba(120, 80, 30, 0.10);
-}
-.btn-reset:hover { background: #faf0d8; }
 .controls .btn {
   animation: pop-in 0.25s ease both;
 }
@@ -976,6 +969,24 @@ button {
   background: #fff5d8;
   color: #8b5a18;
   font-weight: 800;
+}
+.achievements-head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+.achievements-refresh {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(208, 178, 113, 0.58);
+  background: #fffdf7;
+  color: #8b5a18;
+  font-weight: 700;
+  cursor: pointer;
+}
+.achievements-refresh:hover {
+  background: #fff5d8;
 }
 .achievements-grid {
   display: grid;

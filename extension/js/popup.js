@@ -74,21 +74,115 @@
       chrome.runtime.sendMessage({ type: 'achievement-check', reason: reason }, function (response) {
         void chrome.runtime.lastError;
         if (response && Array.isArray(response.unlocked) && response.unlocked.length) {
-          showAchievementToast(response.unlocked);
+          enqueueAchievements(response.unlocked);
         }
         refreshAchievements();
       });
     } catch (e) { refreshAchievements(); }
   }
 
-  function showAchievementToast(items) {
-    if (!items || !items.length || !document.body) { return; }
-    var item = items[0];
-    var el = document.createElement('div');
-    el.className = 'achievement-toast';
-    el.innerHTML = '<strong>🏅 解锁成就：' + item.title + '</strong><br><span>' + (item.flavorText || item.description || '') + '</span>';
-    document.body.appendChild(el);
-    setTimeout(function () { if (el.parentNode) { el.parentNode.removeChild(el); } }, 4200);
+  // 依次弹出全部已解锁成就（一条接一条）。无已解锁则不弹。
+  function popUnlockedFromData(data) {
+    if (!window.MoyuAchievements || !window.MoyuAchievementEngine) { return; }
+    data = data || {};
+    var logs = {};
+    Object.keys(data).forEach(function (key) {
+      if (key.indexOf(KEY_PREFIX_LOG) === 0) {
+        logs[key.slice(KEY_PREFIX_LOG.length)] = data[key];
+      }
+    });
+    var stats = data[KEY_WATER_STATS] && typeof data[KEY_WATER_STATS] === 'object' ? data[KEY_WATER_STATS] : null;
+    var snapshot = MoyuAchievementEngine.snapshotFromLogs(logs, {
+      dailyDismiss: stats && stats.date === todayStr() ? stats.dismiss : 0,
+      totalDismiss: data[KEY_WATER_TOTAL]
+    });
+    var entries = MoyuAchievementEngine.evaluate(MoyuAchievements.list, data[KEY_ACHIEVEMENTS] || { unlocked: {} }, snapshot, {
+      includeWater: true,
+      dailyBetweenMode: 'deferred'
+    });
+    var unlocked = entries.filter(function (entry) { return entry.progress.matched; })
+      .map(function (entry) { return entry.achievement; });
+    if (!unlocked.length) { return; }
+    enqueueAchievements(unlocked);
+  }
+
+  // 手动刷新：先请求 SW 重算解锁状态，再读最新存储依次弹出全部已解锁成就。
+  function refreshAndPopAchievements() {
+    var afterCheck = function () {
+      refreshAchievements();
+      chrome.storage.local.get(null, popUnlockedFromData);
+    };
+    try {
+      chrome.runtime.sendMessage({ type: 'achievement-check', reason: 'manual' }, function () {
+        void chrome.runtime.lastError;
+        afterCheck();
+      });
+    } catch (e) { afterCheck(); }
+  }
+
+  // ---- 成就富弹窗：排队式，一次一个，点「收下这份荣誉」关闭后弹下一个 ----
+  var achievementQueue = [];
+  var achievementShowing = false;
+
+  function enqueueAchievements(items) {
+    if (!items || !items.length) { return; }
+    achievementQueue = achievementQueue.concat(items);
+    popNextAchievement();
+  }
+
+  function popNextAchievement() {
+    if (achievementShowing) { return; }
+    var item = achievementQueue.shift();
+    if (!item) { return; }
+    achievementShowing = true;
+    showAchievementPanel(item, function () {
+      achievementShowing = false;
+      popNextAchievement();
+    });
+  }
+
+  // 复刻扩展暂停时的成就富卡片（同 content-reminder.js 样式），在 full 页 DOM 内展示。
+  function showAchievementPanel(item, onClose) {
+    if (!document.body) { if (onClose) { onClose(); } return; }
+    item = item && typeof item === 'object' ? item : {};
+    var host = document.createElement('div');
+    host.id = 'moyu-ach-panel-host';
+    host.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:2147483647;width:320px;';
+    var shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML =
+      '<style>' +
+      '*{box-sizing:border-box;margin:0;padding:0;}' +
+      '.wr-card{position:relative;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;width:320px;background:linear-gradient(180deg,#fffdf4,#fff1cc);border:1px solid #e2bd67;border-radius:16px;box-shadow:0 10px 28px rgba(122,91,46,.24);padding:0 0 14px;color:#3a3328;animation:wr-in .26s cubic-bezier(.2,.9,.3,1.2);}' +
+      '@keyframes wr-in{from{opacity:0;transform:translateY(16px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}' +
+      '.wr-scene{position:relative;height:64px;background:linear-gradient(180deg,#ffe6a8,#ffd18a);overflow:hidden;border-bottom:1px solid #ecc577;}' +
+      '.wr-medal{position:absolute;left:18px;bottom:10px;font-size:36px;line-height:1;animation:wr-bounce 1.8s ease-in-out infinite;}' +
+      '@keyframes wr-bounce{0%,100%{transform:translateY(0) rotate(-5deg);}50%{transform:translateY(-5px) rotate(5deg);}}' +
+      '.wr-fish{position:absolute;right:20px;bottom:12px;font-size:26px;}' +
+      '.wr-spark{position:absolute;color:#fff;font-size:16px;animation:wr-rise 2.6s ease-in infinite;}.s1{left:48%;bottom:12px}.s2{left:68%;bottom:4px;animation-delay:.7s}.s3{left:82%;bottom:18px;animation-delay:1.1s}' +
+      '@keyframes wr-rise{0%{transform:translateY(8px) scale(.8);opacity:0;}20%{opacity:.95;}100%{transform:translateY(-44px) scale(1.1);opacity:0;}}' +
+      '.wr-body{padding:13px 16px 0;}' +
+      '.wr-kicker{font-size:12px;color:#a06b24;letter-spacing:.12em;font-weight:700;}' +
+      '.wr-title{font-size:17px;font-weight:800;color:#7a4a15;line-height:1.4;margin:5px 0 6px;}' +
+      '.wr-text{font-size:13px;color:#8d754c;line-height:1.55;margin:0 0 8px;}' +
+      '.wr-flavor{font-size:13px;color:#9a6b31;line-height:1.55;margin:0 0 12px;}' +
+      '.wr-btns{display:flex;gap:8px;padding:0 16px;}' +
+      '.wr-btn{flex:1;cursor:pointer;border-radius:11px;padding:9px 0;font-size:13px;font-weight:700;border:1px solid #d8c49a;transition:transform .12s ease,filter .12s ease;}' +
+      '.wr-btn:hover{transform:translateY(-1px);filter:brightness(1.04);}' +
+      '.wr-dismiss{background:linear-gradient(135deg,#f0a43a,#cf4c35);color:#fff;border-color:transparent;}' +
+      '</style>' +
+      '<div class="wr-card" role="dialog" aria-label="成就解锁">' +
+      '<div class="wr-scene"><span class="wr-spark s1">✨</span><span class="wr-spark s2">✨</span><span class="wr-spark s3">✨</span><span class="wr-medal">' + (item.icon || '🏅') + '</span><span class="wr-fish">🐟</span></div>' +
+      '<div class="wr-body"><div class="wr-kicker">🏅 解锁成就</div><div class="wr-title" id="wr-ach-title"></div><p class="wr-text" id="wr-ach-desc"></p><p class="wr-flavor" id="wr-ach-flavor"></p></div>' +
+      '<div class="wr-btns"><button class="wr-btn wr-dismiss" id="wr-ach-close" type="button">收下这份荣誉</button></div>' +
+      '</div>';
+    shadow.getElementById('wr-ach-title').textContent = item.title || '新的摸鱼成就';
+    shadow.getElementById('wr-ach-desc').textContent = item.description || '';
+    shadow.getElementById('wr-ach-flavor').textContent = item.flavorText || '';
+    shadow.getElementById('wr-ach-close').addEventListener('click', function () {
+      if (host.parentNode) { host.parentNode.removeChild(host); }
+      if (onClose) { onClose(); }
+    });
+    document.body.appendChild(host);
   }
 
   // ---- 金句池（同网页版） ----
@@ -672,23 +766,19 @@
     var btnStart = document.getElementById('btn-start');
     var btnPause = document.getElementById('btn-pause');
     var btnResume = document.getElementById('btn-resume');
-    var btnReset = document.getElementById('btn-reset');
 
-    if (!btnStart || !btnPause || !btnResume || !btnReset) return;
+    if (!btnStart || !btnPause || !btnResume) return;
 
     btnStart.classList.add('is-hidden');
     btnPause.classList.add('is-hidden');
     btnResume.classList.add('is-hidden');
-    btnReset.classList.add('is-hidden');
 
     if (status === 'idle') {
       btnStart.classList.remove('is-hidden');
     } else if (status === 'running') {
       btnPause.classList.remove('is-hidden');
-      btnReset.classList.remove('is-hidden');
     } else if (status === 'paused') {
       btnResume.classList.remove('is-hidden');
-      btnReset.classList.remove('is-hidden');
     }
   }
 
@@ -901,6 +991,11 @@
     renderMonth();
     refreshAchievements();
 
+    var achievementsRefresh = document.getElementById('achievements-refresh');
+    if (achievementsRefresh) {
+      achievementsRefresh.addEventListener('click', refreshAndPopAchievements);
+    }
+
     // 一次性绑定按钮事件
     document.getElementById('btn-start').addEventListener('click', function () {
       var err = validateRateForTimer();
@@ -920,12 +1015,6 @@
     document.getElementById('btn-resume').addEventListener('click', function () {
       autoPausedNotice = false;
       timer.resume();
-      renderMonth();
-    });
-    document.getElementById('btn-reset').addEventListener('click', function () {
-      LogStore.commit(todayStr(), timer.getSeconds());
-      timer.reset();
-      beginSegment();
       renderMonth();
     });
 

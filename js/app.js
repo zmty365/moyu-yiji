@@ -206,6 +206,27 @@
     setTimeout(function () { if (el.parentNode) { el.parentNode.removeChild(el); } }, 4200);
   }
 
+  // 依次弹出全部当前达标成就（一条接一条）。无达标则不弹。
+  function popUnlockedAchievements() {
+    if (!window.MoyuAchievements || !window.MoyuAchievementEngine) { return; }
+    var entries = MoyuAchievementEngine.evaluate(MoyuAchievements.list, readAchievementState(), achievementSnapshot(), {
+      includeWater: false,
+      dailyBetweenMode: 'deferred'
+    });
+    var unlocked = entries.filter(function (entry) { return entry.progress.matched; })
+      .map(function (entry) { return entry.achievement; });
+    if (!unlocked.length) { return; }
+    unlocked.forEach(function (item, i) {
+      setTimeout(function () { showAchievementToast([item]); }, i * 900);
+    });
+  }
+
+  // 手动刷新：重算解锁状态并依次弹出全部已解锁成就。
+  function refreshAndPopAchievements() {
+    checkAchievements(false);
+    popUnlockedAchievements();
+  }
+
   function checkAchievements(showToast) {
     if (!window.MoyuAchievements || !window.MoyuAchievementEngine) { return; }
     var result = MoyuAchievementEngine.unlockNew(MoyuAchievements.list, readAchievementState(), achievementSnapshot(), {
@@ -701,24 +722,20 @@
     var btnStart = document.getElementById('btn-start');
     var btnPause = document.getElementById('btn-pause');
     var btnResume = document.getElementById('btn-resume');
-    var btnReset = document.getElementById('btn-reset');
 
-    if (!btnStart || !btnPause || !btnResume || !btnReset) return;
+    if (!btnStart || !btnPause || !btnResume) return;
 
     // 全部先隐藏
     btnStart.classList.add('is-hidden');
     btnPause.classList.add('is-hidden');
     btnResume.classList.add('is-hidden');
-    btnReset.classList.add('is-hidden');
 
     if (status === 'idle') {
       btnStart.classList.remove('is-hidden');
     } else if (status === 'running') {
       btnPause.classList.remove('is-hidden');
-      btnReset.classList.remove('is-hidden');
     } else if (status === 'paused') {
       btnResume.classList.remove('is-hidden');
-      btnReset.classList.remove('is-hidden');
     }
   }
 
@@ -805,12 +822,10 @@
     timer.resume();
     renderMonth();
   });
-  document.getElementById('btn-reset').addEventListener('click', function () {
-    settlePending();
-    beginSegment();   // 先清零 localStorage，再 reset，保证 renderTimer 读到 0
-    timer.reset();
-    renderMonth();
-  });
+  var achievementsRefresh = document.getElementById('achievements-refresh');
+  if (achievementsRefresh) {
+    achievementsRefresh.addEventListener('click', refreshAndPopAchievements);
+  }
 
   renderTimer();
 
