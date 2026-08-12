@@ -1,37 +1,44 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="摸鱼小猫">
   <defs>
     <linearGradient id="catBody" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f2c78f"/>
-      <stop offset="1" stop-color="#e0a96b"/>
+      <stop offset="0" stop-color="#f7d9a6"/>
+      <stop offset="1" stop-color="#e9b877"/>
     </linearGradient>
   </defs>
-  <!-- 睡垫：黛绿椭圆 -->
-  <ellipse cx="48" cy="80" rx="36" ry="10" fill="#f7efdf" stroke="#3b5a4e" stroke-width="2"/>
-  <ellipse cx="48" cy="80" rx="36" ry="6" fill="none" stroke="#c49a4a" stroke-width="1.5" opacity="0.7"/>
+  <!-- 坐垫 -->
+  <ellipse cx="48" cy="86" rx="30" ry="7" fill="#3b5a4e" opacity="0.15"/>
   <!-- 尾巴 -->
-  <path d="M60 74 C 74 78, 78 64, 70 56" fill="none" stroke="#3a3328" stroke-width="4" stroke-linecap="round"/>
-  <!-- 身体（趴伏） -->
-  <ellipse cx="48" cy="66" rx="30" ry="16" fill="url(#catBody)" stroke="#3a3328" stroke-width="2.5"/>
-  <!-- 前爪并拢 -->
-  <path d="M34 72 L 40 72 M 56 72 L 62 72" stroke="#3a3328" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
-  <!-- 头 -->
-  <circle cx="48" cy="40" r="21" fill="url(#catBody)" stroke="#3a3328" stroke-width="2.5"/>
-  <path d="M32 34 L 37 24 L 44 33 Z" fill="url(#catBody)" stroke="#3a3328" stroke-width="2.5" stroke-linejoin="round"/>
-  <path d="M64 34 L 59 24 L 52 33 Z" fill="url(#catBody)" stroke="#3a3328" stroke-width="2.5" stroke-linejoin="round"/>
-  <!-- 闭眼（打盹） -->
-  <path d="M40 39 Q 44 42, 48 39" stroke="#3a3328" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <path d="M48 39 Q 52 42, 56 39" stroke="#3a3328" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <!-- 鼻子 -->
-  <path d="M47 44 L 49 44 M46 45 Q 48 46, 50 45" stroke="#3a3328" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-  <!-- 胡须 -->
-  <path d="M34 43 L 24 41 M32 47 L 22 48 M62 43 L 72 41 M64 47 L 74 48" stroke="#3a3328" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+  <path d="M70 76 C 84 74, 86 60, 76 54" fill="none" stroke="#e9b877" stroke-width="7" stroke-linecap="round"/>
+  <path d="M70 76 C 84 74, 86 60, 76 54" fill="none" stroke="#c98f45" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 8" opacity="0.5"/>
+  <!-- 身体（圆润坐姿） -->
+  <path d="M28 82 C 26 60, 34 52, 48 52 C 62 52, 70 60, 68 82 Z" fill="url(#catBody)" stroke="#c98f45" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- 白肚兜 -->
+  <ellipse cx="48" cy="72" rx="12" ry="14" fill="#fff7ea" opacity="0.85"/>
+  <!-- 前爪 -->
+  <ellipse cx="38" cy="82" rx="7" ry="5" fill="#fff7ea" stroke="#c98f45" stroke-width="2"/>
+  <ellipse cx="58" cy="82" rx="7" ry="5" fill="#fff7ea" stroke="#c98f45" stroke-width="2"/>
+  <!-- 耳朵 -->
+  <path d="M28 34 L 24 14 L 42 26 Z" fill="url(#catBody)" stroke="#c98f45" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M68 34 L 72 14 L 54 26 Z" fill="url(#catBody)" stroke="#c98f45" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M30 30 L 28 20 L 37 26 Z" fill="#f5a6a6"/>
+  <path d="M66 30 L 68 20 L 59 26 Z" fill="#f5a6a6"/>
+  <!-- 头（大圆脸） -->
+  <circle cx="48" cy="40" r="24" fill="url(#catBody)" stroke="#c98f45" stroke-width="2.5"/>
+  <!-- 虎斑纹 -->
+  <path d="M48 17 v7 M40 18 l2 6 M56 18 l-2 6" stroke="#c98f45" stroke-width="2.4" stroke-linecap="round" opacity="0.7"/>
+  <!-- 大眼睛 + 高光 -->
+  <ellipse cx="39" cy="42" rx="5.5" ry="6.5" fill="#3a3328"/>
+  <ellipse cx="57" cy="42" rx="5.5" ry="6.5" fill="#3a3328"/>
+  <circle cx="41" cy="39.5" r="1.8" fill="#fff"/>
+  <circle cx="59" cy="39.5" r="1.8" fill="#fff"/>
+  <circle cx="37.5" cy="44" r="1" fill="#fff" opacity="0.8"/>
+  <circle cx="55.5" cy="44" r="1" fill="#fff" opacity="0.8"/>
+  <!-- 鼻子 + 嘴 -->
+  <path d="M46 49 L 50 49 L 48 51.5 Z" fill="#f5a6a6"/>
+  <path d="M48 51.5 v2 M48 53.5 Q 44 56, 41 54 M48 53.5 Q 52 56, 55 54" stroke="#3a3328" stroke-width="1.6" fill="none" stroke-linecap="round"/>
   <!-- 腮红 -->
-  <circle cx="35" cy="47" r="3" fill="#b3261e" opacity="0.35"/>
-  <circle cx="61" cy="47" r="3" fill="#b3261e" opacity="0.35"/>
-  <!-- 头顶鱼骨小徽记 -->
-  <path d="M45 8 h6 M48 8 v5" stroke="#c49a4a" stroke-width="2.4" stroke-linecap="round"/>
-  <circle cx="43" cy="9" r="1.6" fill="#c49a4a"/>
-  <circle cx="53" cy="9" r="1.6" fill="#c49a4a"/>
-  <circle cx="40" cy="11" r="1.2" fill="#c49a4a"/>
-  <circle cx="56" cy="11" r="1.2" fill="#c49a4a"/>
+  <ellipse cx="33" cy="48" rx="4" ry="2.6" fill="#f5a6a6" opacity="0.55"/>
+  <ellipse cx="63" cy="48" rx="4" ry="2.6" fill="#f5a6a6" opacity="0.55"/>
+  <!-- 胡须 -->
+  <path d="M33 46 L 22 44 M33 50 L 22 51 M63 46 L 74 44 M63 50 L 74 51" stroke="#c98f45" stroke-width="1.4" stroke-linecap="round" opacity="0.6"/>
 </svg>
