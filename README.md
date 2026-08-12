@@ -1,10 +1,12 @@
 # 宜忌月历 · 摸鱼账本
 
-一个趣味 **Chrome 扩展**（Manifest V3）——每天给你生成专属「宜 / 忌」，记录摸鱼时长并按时薪折算入账，久坐到点还会在当前网页右下角温柔提醒你喝口水、起身活动。摸鱼与喝水都能解锁趣味成就，边摸边收集。
+一个趣味 **Chrome 扩展**（Manifest V3）——每天给你生成专属「宜 / 忌」，记录摸鱼时长并按时薪折算入账，久坐到点还会在当前网页右下角温柔提醒你喝口水、起身活动。摸鱼时长会累积成「摸鱼等级」，还有一只常驻网页的悬浮猫桌宠陪你摸鱼掉币。摸鱼与喝水都能解锁趣味成就，边摸边收集。
 
 ![宜忌日历](./assets/screenshots/宜忌日历.png)
 
 ![摸鱼身价+计时器](./assets/screenshots/摸鱼身价+计时器.png)
+
+![等级系统](./assets/screenshots/等级系统.png)
 
 ![成就墙](./assets/screenshots/成就墙.png)
 
@@ -15,6 +17,8 @@
 - **摸鱼计时器**：三态状态机（idle → running → paused），基于真实时间戳累计，金额 = 时薪 × 秒数 / 3600；**后台持续计时、关浏览器自动暂停**
 - **薪资模型**：支持手填时薪，或按「月薪 ÷ 工作天数 ÷ 日时长」推算等效时薪
 - **今日金句**：每天一条猫 / 鱼 / 躺平梗，按日期确定性选取
+- **摸鱼等级**：摸鱼累计时长换算成 8 段等级（Lv.0 公司最佳员工 → Lv.8 摸鱼之神），等级只涨不掉；每晋一级发放一次性摸鱼币奖励，小窗与完整页均有「晋级里程碑」修行之路展示
+- **悬浮猫桌宠**：一只常驻任意网页右下角的小猫，可拖动、可收起；抚摸有 70% 概率掉 1~3 枚摸鱼币（每日 10 次上限），其余给彩蛋气泡，闲时还会冒出「劝摸」气泡
 - **成就系统**：把摸鱼与喝水行为变成可解锁的趣味成就（共 10 个），达标自动解锁并弹出提示
 - **喝水提醒**：久坐到点在当前网页右下角弹出轻量浮层，提供「稍后 / 关闭」；支持自定义间隔、静音时段、网站白名单与提示音，全屏看视频 / PPT 或正在输入时自动延后弹出，特殊页面降级为系统通知
 
@@ -42,7 +46,7 @@
 ```
 moyu-yiji/
 ├── extension/               # Chrome 扩展本体（Manifest V3，自包含）
-│   ├── manifest.json        # 扩展配置（storage / alarms / notifications / scripting / tabs / offscreen 权限）
+│   ├── manifest.json        # 扩展配置（storage / alarms / notifications / scripting / tabs / offscreen 权限；向所有网页注入 wallet.js + pet-content.js）
 │   ├── popup.html           # 简洁小窗：今日宜忌 + 账本 + 紧凑计时器
 │   ├── full.html            # 完整月历页（新标签页打开）
 │   ├── offscreen.html       # 离屏页（稳定播放喝水提醒提示音）
@@ -62,6 +66,9 @@ moyu-yiji/
 │   │   ├── achievement-engine.js # 成就判断引擎（统计快照 / 进度 / 解锁判断）
 │   │   ├── calendar-tooltip.js   # 日期悬浮窗
 │   │   ├── moyu-timer.js         # 摸鱼计时器状态机（idle / running / paused）
+│   │   ├── level.js              # 摸鱼等级系统（引擎 + 结算 + 里程碑渲染 + 自动挂载）
+│   │   ├── wallet.js             # 摸鱼币钱包：全系统唯一货币出入口（原子加币）
+│   │   ├── pet-content.js        # 悬浮猫桌宠内容脚本（抚摸掉币 + 劝摸气泡，注入任意网页）
 │   │   └── yiji-data.js          # 宜忌数据生成（按日期可复现的 PRNG）
 │   └── tools/gen_icons.py   # 纯 Python 标准库生成扩展图标
 ├── assets/                  # 吉祥物素材与预览
@@ -92,6 +99,11 @@ graph TB
     D --> F[water-reminder.js 喝水调度]
     F --> G[content-reminder.js 注入网页浮层]
     F --> H[offscreen.js 提示音]
+    I[pet-content.js 桌宠] --> J[wallet.js 摸鱼币钱包]
+    J --> E
+    B --> K[level.js 摸鱼等级]
+    C --> K
+    K --> J
 ```
 
 三方（小窗 / 完整页 / Service Worker）以 `chrome.storage.local` 为唯一数据源，通过 `chrome.storage.onChanged` 实时同步。
@@ -134,6 +146,24 @@ idle ──start──▶ running ──pause──▶ paused
 
 装配层（`mini.js` / `popup.js`）负责读写解锁状态、渲染卡片与弹出解锁提示。
 
+### 摸鱼等级系统
+
+[`level.js`](./extension/js/level.js) 合并「引擎 + 结算服务 + 展示渲染 + 页面挂载」于一体，导出 `MoyuLevelEngine` / `MoyuLevelService` / `MoyuLevelView` 三个全局对象：
+
+- **等级引擎（纯函数）**：8 段门槛（Lv.0 起、Lv.8 封顶），按累计摸鱼秒数计算当前段位、进度比例与下一级门槛
+- **只涨不掉**：等级基于累计时长单调递增，不会因暂停或跨天回落
+- **升级发币**：每晋一级发放一次性摸鱼币奖励（Lv.1 起，数值非等差递增），通过 [`wallet.js`](./extension/js/wallet.js) 落账
+- **自动挂载**：加载时探测 `#mini-level-chart`（小窗）/ `#full-level-card`（完整页）挂载点，谁在渲染谁；「晋级里程碑」轮播在完整页为三卡弧形、小窗为紧凑单卡
+
+### 悬浮猫桌宠
+
+[`pet-content.js`](./extension/js/pet-content.js) 作为内容脚本注入任意网页右下角，自包含（内嵌 SVG + 样式 + 交互），数据存 `chrome.storage.local`：
+
+- **抚摸掉币**：点按小猫，70% 概率掉 1~3 枚摸鱼币、其余给彩蛋气泡，每日 10 次上限
+- **劝摸气泡**：待机时低频冒出「反向监督」气泡，零负担陪伴
+- **可拖动 / 可收起**：右上角按钮一键收起为半透明小图标
+- **统一钱包**：掉币经 [`wallet.js`](./extension/js/wallet.js) 的 `MoyuWallet.add()` 落账。钱包采用 read-modify-write 原子加币（基于 storage 最新值累加而非缓存覆盖），保证桌宠抚摸与等级升级发币在不同上下文并发时不互相覆盖
+
 ### 数据持久化（chrome.storage.local）
 
 | 键 | 内容 |
@@ -142,6 +172,8 @@ idle ──start──▶ running ──pause──▶ paused
 | `moyu-settings` | 薪资模型：`{ hourlyRate, monthlySalary, workdays, hoursPerDay }` |
 | `moyu-timer-state` | 计时器上下文：`{ status, hourlyRate, accSeconds, startAt, lastLogged, alive }` |
 | `moyu-achievements` | 已解锁成就：`{ unlocked: { [id]: { unlockedAt } } }` |
+| `pet-coin` | 摸鱼币余额（桌宠抚摸掉币与等级升级奖励共用，钱包原子累加） |
+| `pet-pat-day` / `pet-pat-count` | 抚摸掉币次数所属日期与当日已抚摸次数（每日 10 次上限） |
 | 喝水提醒相关 | 提醒间隔、开关、提示音、白名单、静音时段与今日提醒 / 稍后 / 关闭统计 |
 
 由于 `chrome.storage` 是异步 API，而渲染以同步读为主，`mini.js` 与 `popup.js` 均采用「初始化时 `await` 恢复全量数据到内存缓存 → 后续读走缓存、写异步落盘」的适配策略，避免闪变。
