@@ -138,7 +138,6 @@
           <button class="btn btn-start" id="btn-start">开始摸鱼</button>
           <button class="btn btn-pause is-hidden" id="btn-pause">暂停</button>
           <button class="btn btn-start is-hidden" id="btn-resume">继续摸鱼</button>
-          <button class="btn btn-reset is-hidden" id="btn-reset">重置</button>
         </div>
         <p class="pane-note">🐟 一秒摸鱼一秒金 · 记进今天的日子格</p>
       </div>
@@ -150,7 +149,10 @@
           <span class="achievements-kicker">🏅 摸鱼成就</span>
           <h2>鱼塘荣誉墙</h2>
         </div>
-        <span class="achievements-count" id="achievements-count">0 / 0</span>
+        <div class="achievements-head-right">
+          <button type="button" class="achievements-refresh" id="achievements-refresh">🔄 刷新成就</button>
+          <span class="achievements-count" id="achievements-count">0 / 0</span>
+        </div>
       </div>
       <div class="achievements-grid" id="achievements-grid"></div>
     </section>

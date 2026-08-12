@@ -336,23 +336,19 @@
     var btnStart = document.getElementById('btn-start');
     var btnPause = document.getElementById('btn-pause');
     var btnResume = document.getElementById('btn-resume');
-    var btnReset = document.getElementById('btn-reset');
 
-    if (!btnStart || !btnPause || !btnResume || !btnReset) return;
+    if (!btnStart || !btnPause || !btnResume) return;
 
     btnStart.classList.add('is-hidden');
     btnPause.classList.add('is-hidden');
     btnResume.classList.add('is-hidden');
-    btnReset.classList.add('is-hidden');
 
     if (status === 'idle') {
       btnStart.classList.remove('is-hidden');
     } else if (status === 'running') {
       btnPause.classList.remove('is-hidden');
-      btnReset.classList.remove('is-hidden');
     } else if (status === 'paused') {
       btnResume.classList.remove('is-hidden');
-      btnReset.classList.remove('is-hidden');
     }
   }
 
@@ -525,11 +521,6 @@
     document.getElementById('btn-resume').addEventListener('click', function () {
       autoPausedNotice = false;
       timer.resume();
-    });
-    document.getElementById('btn-reset').addEventListener('click', function () {
-      LogStore.commit(todayStr(), timer.getSeconds());
-      timer.reset();
-      beginSegment();
     });
 
     renderTimer();
