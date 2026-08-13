@@ -12,6 +12,8 @@
   var K_COIN = 'pet-coin';        // 摸鱼币余额
   var K_PET_DAY = 'pet-pat-day';  // 记录抚摸次数所属日期（YYYY-MM-DD）
   var K_PET_CNT = 'pet-pat-count';// 当日已抚摸掉币次数
+  var K_PET_DROPPED = 'pet-dropped-coin'; // 桌宠累计掉落摸鱼币
+  var K_PET_ENABLED = 'pet-enabled'; // 是否显示桌宠（默认显示）
   var DAILY_PAT_LIMIT = 10;       // 每日抚摸掉币上限（PRD §6.3）
 
   // ---- 文案库 ----
@@ -99,6 +101,13 @@
 
   // 抚摸掉币走统一钱包（原子加币），避免与等级升级发币在不同上下文互相覆盖。
   function awardCoin(gain) {
+    try {
+      chrome.storage.local.get([K_PET_DROPPED], function (o) {
+        var current = Number(o && o[K_PET_DROPPED]) || 0;
+        var set = {}; set[K_PET_DROPPED] = current + gain;
+        chrome.storage.local.set(set);
+      });
+    } catch (e) { /* 忽略 */ }
     if (window.MoyuWallet) {
       MoyuWallet.add(gain, function (next) { coin = next; renderCoin(); });
     } else {
@@ -168,8 +177,15 @@
     elToggle.textContent = collapsed ? '+' : '–';
   });
 
+  function applyEnabled(enabled) {
+    root.style.display = enabled === false ? 'none' : '';
+  }
+
   // ---- 初始化：读币 + 启动待机气泡 ----
   try {
+    chrome.storage.local.get([K_PET_ENABLED], function (o) {
+      applyEnabled(!(o && o[K_PET_ENABLED] === false));
+    });
     if (window.MoyuWallet) {
       MoyuWallet.getBalance(function (v) { coin = v; renderCoin(); });
     } else {
@@ -178,6 +194,13 @@
         renderCoin();
       });
     }
+  } catch (e) { /* 忽略 */ }
+  try {
+    chrome.storage.onChanged.addListener(function (changes, area) {
+      if (area === 'local' && changes[K_PET_ENABLED]) {
+        applyEnabled(changes[K_PET_ENABLED].newValue !== false);
+      }
+    });
   } catch (e) { /* 忽略 */ }
   startIdleBubbles();
   setTimeout(function () { showBubble('嗨，我是你的摸鱼搭子 😼'); }, 1200);
