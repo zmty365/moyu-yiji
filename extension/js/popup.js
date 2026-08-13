@@ -419,7 +419,14 @@
   var timerCard = document.getElementById('timer-card');
   var timerToday = document.getElementById('timer-today');
 
+  var petEnabledInput = document.getElementById('pet-enabled');
+  var petDroppedCoin = document.getElementById('pet-dropped-coin');
+  var petStatusText = document.getElementById('pet-status-text');
+
   var fortuneText = document.getElementById('fortune-text');
+
+  var KEY_PET_ENABLED = 'pet-enabled';
+  var KEY_PET_DROPPED = 'pet-dropped-coin';
 
   var RING_R = 108;
   var RING_CIRCUMFERENCE = 2 * Math.PI * RING_R;
@@ -446,6 +453,20 @@
       return timer.getSeconds();
     }
     return LogStore.get(t);
+  }
+
+  function renderPetCard(data) {
+    if (!petEnabledInput && !petDroppedCoin && !petStatusText) return;
+    data = data || {};
+    var enabled = data[KEY_PET_ENABLED] !== false;
+    var dropped = Number(data[KEY_PET_DROPPED]) || 0;
+    if (petEnabledInput) petEnabledInput.checked = enabled;
+    if (petDroppedCoin) petDroppedCoin.textContent = String(Math.max(0, Math.floor(dropped)));
+    if (petStatusText) {
+      petStatusText.textContent = enabled
+        ? '桌宠已开启，会常驻网页右下角陪你摸鱼。'
+        : '桌宠已隐藏，可随时重新开启。';
+    }
   }
 
   function cellHTML(y, m, d, isOther) {
@@ -989,11 +1010,21 @@
     sanitizePollutedToday();
     fillSettingsForm();
     renderMonth();
+    renderPetCard(data);
     refreshAchievements();
 
     var achievementsRefresh = document.getElementById('achievements-refresh');
     if (achievementsRefresh) {
       achievementsRefresh.addEventListener('click', refreshAndPopAchievements);
+    }
+
+    if (petEnabledInput) {
+      petEnabledInput.addEventListener('change', function () {
+        var set = {}; set[KEY_PET_ENABLED] = !!petEnabledInput.checked;
+        chrome.storage.local.set(set, function () {
+          renderPetCard(set);
+        });
+      });
     }
 
     // 一次性绑定按钮事件
@@ -1073,6 +1104,16 @@
           applySettingsObject(newVal);
           fillSettingsForm();
           needRerender = true;
+        } else if (key === KEY_PET_ENABLED || key === KEY_PET_DROPPED) {
+          var petData = {};
+          petData[key] = newVal;
+          if (key === KEY_PET_ENABLED && petDroppedCoin) {
+            petData[KEY_PET_DROPPED] = Number(petDroppedCoin.textContent) || 0;
+          }
+          if (key === KEY_PET_DROPPED && petEnabledInput) {
+            petData[KEY_PET_ENABLED] = petEnabledInput.checked;
+          }
+          renderPetCard(petData);
         }
       }
       if (needTimer && changes[KEY_TIMER] && changes[KEY_TIMER].newValue) {

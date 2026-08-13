@@ -1335,6 +1335,116 @@ html.popup-html {
 }
 
 /* —— 成就墙 —— */
+.pet-panel {
+  margin-top: 22px;
+  background: linear-gradient(160deg, #fffdf4, #fff0d2);
+  border: 1px solid rgba(208, 178, 113, 0.72);
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: 0 18px 40px rgba(80, 52, 20, 0.10);
+}
+.pet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.pet-kicker {
+  display: block;
+  color: #a06b24;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+}
+.pet-panel h2 {
+  margin: 4px 0 0;
+  color: #6f3f18;
+  font-size: 24px;
+}
+.pet-switch {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  flex: 0 0 auto;
+}
+.pet-switch input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+}
+.pet-slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #d8c49a;
+  cursor: pointer;
+  transition: background 0.22s ease;
+}
+.pet-slider::before {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  left: 3px;
+  top: 3px;
+  border-radius: 50%;
+  background: #fffdf7;
+  box-shadow: 0 2px 6px rgba(80, 52, 20, 0.2);
+  transition: transform 0.22s ease;
+}
+.pet-switch input:checked + .pet-slider {
+  background: linear-gradient(135deg, #d98817, #b15f0e);
+}
+.pet-switch input:checked + .pet-slider::before {
+  transform: translateX(22px);
+}
+.pet-switch input:focus-visible + .pet-slider {
+  outline: 2px solid #b15f0e;
+  outline-offset: 2px;
+}
+.pet-body {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr);
+  align-items: center;
+  gap: 14px 18px;
+}
+.pet-avatar {
+  width: 78px;
+  height: 78px;
+  padding: 8px;
+  border-radius: 22px;
+  background: #fff7df;
+  border: 1px solid rgba(208, 178, 113, 0.58);
+}
+.pet-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pet-stat span,
+.pet-desc,
+.pet-actions {
+  color: #8d754c;
+  font-size: 13px;
+}
+.pet-stat b {
+  color: #b15f0e;
+  font-size: 34px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.pet-desc {
+  grid-column: 2;
+  margin: -4px 0 0;
+}
+.pet-actions {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 250, 240, 0.82);
+  border: 1px dashed rgba(208, 178, 113, 0.72);
+}
+
 .achievements {
   margin-top: 22px;
   background: rgba(255, 253, 244, 0.92);
