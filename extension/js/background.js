@@ -18,7 +18,7 @@
 // 注意：importScripts 的相对路径基于 SW 脚本自身位置（/js/background.js），
 // 用相对扩展根的绝对路径 '/js/water-reminder.js' 才能正确解析。
 try {
-  importScripts('/js/achievements.js', '/js/achievement-engine.js');
+  importScripts('/js/holiday-data.js', '/js/achievements.js', '/js/achievement-engine.js');
   importScripts('/js/water-reminder.js');
 } catch (e) {
   // 提醒模块加载失败不影响摸鱼计时核心，但需暴露到控制台便于排查。
@@ -31,6 +31,7 @@ try {
   var KEY_PREFIX_LOG = 'moyu-log:';
   var KEY_TIMER = 'moyu-timer-state';
   var KEY_ACHIEVEMENTS = 'moyu-achievements';
+  var KEY_ACHIEVEMENT_STATS = 'moyu-achievement-stats';
   var KEY_WATER_STATS = 'water-stats';
   var KEY_WATER_TOTAL = 'water-total-dismiss';
 
@@ -149,6 +150,8 @@ try {
       cb(obj[KEY_ACHIEVEMENTS] || { unlocked: {} }, logs, {
         dailyDismiss: stats && stats.date === todayStr() ? stats.dismiss : 0,
         totalDismiss: obj[KEY_WATER_TOTAL]
+      }, {
+        mainViewOpenCount: obj[KEY_ACHIEVEMENT_STATS] && obj[KEY_ACHIEVEMENT_STATS].mainViewOpenCount
       });
     });
   }
@@ -211,8 +214,8 @@ try {
 
   function checkAchievements(reason, cb) {
     if (!self.MoyuAchievements || !self.MoyuAchievementEngine) { if (cb) { cb([]); } return; }
-    readAchievementInputs(function (state, logs, water) {
-      var snapshot = MoyuAchievementEngine.snapshotFromLogs(logs, water);
+    readAchievementInputs(function (state, logs, water, extra) {
+      var snapshot = MoyuAchievementEngine.snapshotFromLogs(logs, water, extra);
       var result = MoyuAchievementEngine.unlockNew(MoyuAchievements.list, state, snapshot, {
         includeWater: true,
         dailyBetweenMode: 'deferred'

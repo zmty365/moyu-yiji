@@ -22,6 +22,7 @@
   var KEY_SETTINGS = 'moyu-settings';          // 薪资模型设置对象
   var KEY_TIMER = 'moyu-timer-state';          // 计时器上下文（状态+累计+基准时间戳）
   var KEY_ACHIEVEMENTS = 'moyu-achievements';  // 已解锁成就
+  var KEY_ACHIEVEMENT_STATS = 'moyu-achievement-stats'; // 成就辅助统计
   var KEY_WATER_STATS = 'water-stats';         // 今日喝水统计
   var KEY_WATER_TOTAL = 'water-total-dismiss'; // 点击关闭的累计次数
   var KEY_HOLIDAY_OVERRIDES = 'holiday-overrides'; // 用户自定义休/班，仅影响月历展示
@@ -29,6 +30,7 @@
   var WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
   var MONTHS_CN = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
   var holidayOverrides = {};
+  var isClearingLocalData = false;
 
   function escapeHTML(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
@@ -51,6 +53,8 @@
     var snapshot = MoyuAchievementEngine.snapshotFromLogs(logs, {
       dailyDismiss: stats && stats.date === todayStr() ? stats.dismiss : 0,
       totalDismiss: data[KEY_WATER_TOTAL]
+    }, {
+      mainViewOpenCount: data[KEY_ACHIEVEMENT_STATS] && data[KEY_ACHIEVEMENT_STATS].mainViewOpenCount
     });
     var entries = MoyuAchievementEngine.evaluate(MoyuAchievements.list, data[KEY_ACHIEVEMENTS] || { unlocked: {} }, snapshot, {
       includeWater: true,
@@ -103,6 +107,8 @@
     var snapshot = MoyuAchievementEngine.snapshotFromLogs(logs, {
       dailyDismiss: stats && stats.date === todayStr() ? stats.dismiss : 0,
       totalDismiss: data[KEY_WATER_TOTAL]
+    }, {
+      mainViewOpenCount: data[KEY_ACHIEVEMENT_STATS] && data[KEY_ACHIEVEMENT_STATS].mainViewOpenCount
     });
     var entries = MoyuAchievementEngine.evaluate(MoyuAchievements.list, data[KEY_ACHIEVEMENTS] || { unlocked: {} }, snapshot, {
       includeWater: true,
@@ -255,6 +261,24 @@
     var t = new Date();
     return toDateStr(t.getFullYear(), t.getMonth() + 1, t.getDate());
   }
+  function recordMainViewOpen() {
+    chrome.storage.local.get(KEY_ACHIEVEMENT_STATS, function (data) {
+      var stats = data && data[KEY_ACHIEVEMENT_STATS] && typeof data[KEY_ACHIEVEMENT_STATS] === 'object'
+        ? data[KEY_ACHIEVEMENT_STATS]
+        : {};
+      var next = {
+        version: 1,
+        mainViewOpenCount: Math.max(0, Number(stats.mainViewOpenCount) || 0) + 1,
+        firstMainViewOpenedAt: stats.firstMainViewOpenedAt || new Date().toISOString(),
+        lastMainViewOpenedAt: new Date().toISOString()
+      };
+      var payload = {};
+      payload[KEY_ACHIEVEMENT_STATS] = next;
+      chrome.storage.local.set(payload, function () {
+        requestAchievementCheck('main-view-open');
+      });
+    });
+  }
   function formatClock(seconds) {
     var total = Math.floor(seconds);
     var h = Math.floor(total / 3600);
@@ -284,6 +308,7 @@
   }
 
   function storageSet(obj) {
+    if (isClearingLocalData) { return; }
     var keys = {};
     for (var k in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, k)) {
@@ -855,6 +880,7 @@
   // 把 running 的累计（时间戳差分总量 acc）以"max 单调幂等"方式提交到当天 log 并刷新
   // alive 水印。与 SW 的落账遵守同一契约：写 max(旧值, acc)，不重复、不倒退。
   var syncTicker = function () {
+    if (isClearingLocalData) { return false; }
     settleDayRollover();
     var acc = timer.getSeconds();
     if (acc - lastLogged >= 0.25) {
@@ -993,6 +1019,7 @@
   }
 
   function persistTimerState() {
+    if (isClearingLocalData) { return; }
     var o = {};
     o[KEY_TIMER] = snapshotTimerState();
     storageSet(o);
@@ -1135,7 +1162,6 @@
       importBackupData(backupImportFile.files && backupImportFile.files[0]);
     });
   }
-
   // 状态变化 -> 持久化计时器上下文（start/pause/resume/reset 触发 _emit）
   timer.onChange(function () {
     persistTimerState();
@@ -1163,6 +1189,7 @@
   // ============================================================
   // 初始化：先同步搭好事件绑定与静态内容，再异步恢复存储后渲染。
   // ============================================================
+  recordMainViewOpen();
   chrome.storage.local.get(null, function (data) {
     var restoreFlag = {};
     if (chrome.runtime.lastError) {
@@ -1278,6 +1305,16 @@
       }
       var needTimer = false;
       var needRerender = false;
+      if (changes[KEY_TIMER] && changes[KEY_TIMER].newValue === undefined) {
+        isClearingLocalData = true;
+        logCache = {};
+        timer.reset();
+        lastLogged = 0;
+        lastLoggedDate = todayStr();
+        renderMonth();
+        renderTimer();
+        return;
+      }
       for (var key in changes) {
         if (!Object.prototype.hasOwnProperty.call(changes, key)) {
           continue;

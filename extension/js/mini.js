@@ -17,6 +17,7 @@
   var KEY_PREFIX_LOG = 'moyu-log:';
   var KEY_SETTINGS = 'moyu-settings';
   var KEY_TIMER = 'moyu-timer-state';
+  var isClearingLocalData = false;
 
   // ---- 金句池（与 popup.js 完全一致，保证与完整页同日期同金句）----
   var FORTUNE_POOL = [
@@ -102,6 +103,7 @@
   }
 
   function storageSet(obj) {
+    if (isClearingLocalData) { return; }
     var keys = {};
     for (var k in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, k)) {
@@ -222,6 +224,7 @@
   var rateError = document.getElementById('mini-rate-error');
   var controlsBox = document.getElementById('mini-controls');
   var btnOpenFull = document.getElementById('btn-open-full');
+  var btnClearLocal = document.getElementById('btn-clear-local');
 
   // ---- 计时器 ----
   var timer = new MoyuTimer();
@@ -253,6 +256,7 @@
   // 把 running 的累计（时间戳差分总量 acc）以"max 单调幂等"方式提交到当天 log 并刷新
   // alive 水印。与 SW 的落账遵守同一契约：写 max(旧值, acc)，不重复、不倒退。
   var syncTicker = function () {
+    if (isClearingLocalData) { return false; }
     settleDayRollover();
     var acc = timer.getSeconds();
     if (acc - lastLogged >= 0.25) {
@@ -367,6 +371,7 @@
     };
   }
   function persistTimerState() {
+    if (isClearingLocalData) { return; }
     var o = {};
     o[KEY_TIMER] = snapshotTimerState();
     storageSet(o);
@@ -468,6 +473,24 @@
   }, 1000);
 
   window.addEventListener('beforeunload', persistTimerState);
+
+  if (btnClearLocal) {
+    btnClearLocal.addEventListener('click', function () {
+      if (!window.confirm('开发者操作：将清空本扩展 chrome.storage.local 中的所有数据，确定继续吗？')) {
+        return;
+      }
+      isClearingLocalData = true;
+      timer.reset();
+      chrome.storage.local.clear(function () {
+        if (chrome.runtime && chrome.runtime.lastError) {
+          isClearingLocalData = false;
+          window.alert('清空失败：' + chrome.runtime.lastError.message);
+          return;
+        }
+        window.close();
+      });
+    });
+  }
 
   // ---- 初始化：先落静态内容，再异步恢复存储后渲染 ----
   renderYiji();
@@ -708,6 +731,16 @@
       }
       var needBook = false;
       var needTimer = false;
+      if (changes[KEY_TIMER] && changes[KEY_TIMER].newValue === undefined) {
+        isClearingLocalData = true;
+        logCache = {};
+        timer.reset();
+        lastLogged = 0;
+        lastLoggedDate = todayStr();
+        renderBook();
+        renderTimer();
+        return;
+      }
       for (var key in changes) {
         if (!Object.prototype.hasOwnProperty.call(changes, key)) {
           continue;
