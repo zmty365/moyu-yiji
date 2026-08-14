@@ -119,7 +119,8 @@
       '<div class="tt-book">' +
         '<div class="tt-row"><span>时长</span><b>' + data.timeStr + '</b></div>' +
         '<div class="tt-row"><span>入账</span><b class="amt">' + data.amountStr + '</b></div>' +
-      '</div>';
+      '</div>' +
+      (data.holidayHtml || '');
   }
 
   global.CalendarTooltip = { attach: attach, buildHtml: buildHtml };
