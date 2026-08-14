@@ -24,9 +24,17 @@
   var KEY_ACHIEVEMENTS = 'moyu-achievements';  // 已解锁成就
   var KEY_WATER_STATS = 'water-stats';         // 今日喝水统计
   var KEY_WATER_TOTAL = 'water-total-dismiss'; // 点击关闭的累计次数
+  var KEY_HOLIDAY_OVERRIDES = 'holiday-overrides'; // 用户自定义休/班，仅影响月历展示
 
   var WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
   var MONTHS_CN = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
+  var holidayOverrides = {};
+
+  function escapeHTML(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+    });
+  }
 
   function renderAchievementsFromData(data) {
     var grid = document.getElementById('achievements-grid');
@@ -536,6 +544,29 @@
     return LogStore.get(t);
   }
 
+  function holidayInfo(dateStr) {
+    if (!window.MoyuHolidayService) { return null; }
+    return MoyuHolidayService.getDisplayDayInfo(dateStr, holidayOverrides);
+  }
+
+  function holidayBadgeHTML(dateStr) {
+    var info = holidayInfo(dateStr);
+    if (!info) { return ''; }
+    var text = '';
+    var cls = 'day-badge ';
+    if (info.source === 'user') {
+      var theme = MoyuHolidayService.themes[info.theme] || MoyuHolidayService.themes.custom;
+      text = theme.badge || info.name || (info.type === 'workday' ? '班' : '休');
+      cls += 'day-badge-user day-badge-' + escapeHTML(info.theme || 'custom');
+    } else if (info.source === 'builtin') {
+      text = info.type === 'workday' ? '班' : '休';
+      cls += info.type === 'workday' ? 'day-badge-workday' : 'day-badge-holiday';
+    } else {
+      return '';
+    }
+    return '<span class="' + cls + '" title="' + escapeHTML(info.name) + '">' + escapeHTML(text) + '</span>';
+  }
+
   function renderPetCard(data) {
     if (!petEnabledInput && !petDroppedCoin && !petStatusText) return;
     data = data || {};
@@ -579,7 +610,7 @@
     return '<div class="' + cls + '" data-date="' + dateStr + '" role="gridcell">' +
       '<div class="cell-date">' +
         '<span class="cell-date-num">' + d + '</span>' +
-        '<span class="cell-date-week">周' + WEEKDAYS[new Date(y, m - 1, d).getDay()] + '</span>' +
+        '<span class="cell-date-side">' + holidayBadgeHTML(dateStr) + '<span class="cell-date-week">周' + WEEKDAYS[new Date(y, m - 1, d).getDay()] + '</span></span>' +
       '</div>' +
       '<div class="cell-yiji">' + yiItems + jiItems + '</div>' +
       '<div class="cell-log">' +
@@ -626,6 +657,64 @@
     }
     calGrid.innerHTML = cells;
     renderMonthSummary(y, m);
+  }
+
+  function showHolidayEditor(dateStr) {
+    if (!window.MoyuHolidayService) { return; }
+    var old = document.getElementById('holiday-editor-mask');
+    if (old) { old.remove(); }
+    var info = MoyuHolidayService.getDisplayDayInfo(dateStr, holidayOverrides);
+    var legal = MoyuHolidayService.getLegalDayInfo(dateStr);
+    var override = holidayOverrides[dateStr] || {};
+    var themes = MoyuHolidayService.themes;
+    var themeOptions = Object.keys(themes).map(function (key) {
+      return '<option value="' + key + '"' + (key === (override.theme || 'custom') ? ' selected' : '') + '>' + escapeHTML(themes[key].label) + '</option>';
+    }).join('');
+    var mask = document.createElement('div');
+    mask.className = 'holiday-editor-mask';
+    mask.id = 'holiday-editor-mask';
+    mask.innerHTML = '<div class="holiday-editor" role="dialog" aria-modal="true" aria-label="自定义日期">' +
+      '<div class="holiday-editor-head"><h3>' + escapeHTML(dateStr) + '</h3><button type="button" data-action="close">×</button></div>' +
+      '<p class="holiday-editor-desc">法定状态：' + (legal.type === 'workday' ? '工作日' : '休息日') + ' · ' + escapeHTML(legal.name) + '。用户自定义仅影响月历展示，不影响薪资和成就。</p>' +
+      '<label>显示状态<select id="holiday-edit-type"><option value="workday"' + (info.type === 'workday' ? ' selected' : '') + '>上班</option><option value="holiday"' + (info.type === 'holiday' ? ' selected' : '') + '>休息</option></select></label>' +
+      '<label>主题<select id="holiday-edit-theme">' + themeOptions + '</select></label>' +
+      '<label>标题<input id="holiday-edit-title" type="text" placeholder="如：年假 / 周末加班" value="' + escapeHTML(override.title || '') + '"></label>' +
+      '<label>备注<textarea id="holiday-edit-note" rows="3" placeholder="可选">' + escapeHTML(override.note || '') + '</textarea></label>' +
+      '<div class="holiday-editor-actions"><button class="btn" type="button" data-action="save">保存</button><button class="btn btn-ghost" type="button" data-action="remove">取消自定义</button></div>' +
+    '</div>';
+    document.body.appendChild(mask);
+    var typeInput = document.getElementById('holiday-edit-type');
+    var themeInput = document.getElementById('holiday-edit-theme');
+    themeInput.addEventListener('change', function () {
+      var theme = themes[themeInput.value];
+      if (theme && theme.type) { typeInput.value = theme.type; }
+    });
+    mask.addEventListener('click', function (event) {
+      var action = event.target && event.target.getAttribute('data-action');
+      if (event.target === mask || action === 'close') { mask.remove(); return; }
+      if (action === 'remove') {
+        MoyuHolidayService.OverrideStore.remove(dateStr, function () {
+          delete holidayOverrides[dateStr];
+          mask.remove();
+          renderMonth();
+        });
+      }
+      if (action === 'save') {
+        var item = {
+          type: typeInput.value,
+          theme: themeInput.value,
+          title: document.getElementById('holiday-edit-title').value.trim(),
+          note: document.getElementById('holiday-edit-note').value.trim()
+        };
+        MoyuHolidayService.OverrideStore.set(dateStr, item, function () {
+          MoyuHolidayService.OverrideStore.getAll(function (overrides) {
+            holidayOverrides = overrides;
+            mask.remove();
+            renderMonth();
+          });
+        });
+      }
+    });
   }
 
   // 当月汇总：遍历当月所有日期的 moyu-log，累加秒数 / 金额。
@@ -1098,6 +1187,9 @@
       if (data[KEY_TIMER] !== undefined) {
         restoreFlag = restoreTimerState(data[KEY_TIMER]);
       }
+      if (data[KEY_HOLIDAY_OVERRIDES] && typeof data[KEY_HOLIDAY_OVERRIDES] === 'object') {
+        holidayOverrides = data[KEY_HOLIDAY_OVERRIDES];
+      }
     }
 
     // 全部恢复后，首次装配渲染。
@@ -1120,6 +1212,13 @@
         });
       });
     }
+
+    calGrid.addEventListener('click', function (event) {
+      var cell = event.target && event.target.closest ? event.target.closest('.day-cell') : null;
+      if (cell && cell.getAttribute('data-date')) {
+        showHolidayEditor(cell.getAttribute('data-date'));
+      }
+    });
 
     // 一次性绑定按钮事件
     document.getElementById('btn-start').addEventListener('click', function () {
@@ -1198,6 +1297,9 @@
           applySettingsObject(newVal);
           fillSettingsForm();
           needRerender = true;
+        } else if (key === KEY_HOLIDAY_OVERRIDES) {
+          holidayOverrides = newVal && typeof newVal === 'object' ? newVal : {};
+          needRerender = true;
         } else if (key === KEY_PET_ENABLED || key === KEY_PET_DROPPED) {
           var petData = {};
           petData[key] = newVal;
@@ -1239,12 +1341,24 @@
         var rate = effectiveRate(settings);
         var timeStr = hasLog ? formatClock(secs) : '—';
         var amountStr = hasLog ? (rate * secs / 3600).toFixed(2) + ' 元' : '—';
+        var h = holidayInfo(dateStr);
+        var holidayHtml = '';
+        if (h) {
+          var displayText = h.type === 'workday' ? '上班' : '休息';
+          var legalText = (h.legalType || h.type) === 'workday' ? '法定工作日' : '法定休息日';
+          holidayHtml = '<div class="tt-head"><span class="tt-item">工作日</span></div><div class="tt-book">' +
+            '<div class="tt-row"><span>月历显示</span><b>' + escapeHTML(displayText + (h.name ? ' · ' + h.name : '')) + '</b></div>' +
+            '<div class="tt-row"><span>薪资/成就</span><b>' + escapeHTML(legalText) + '</b></div>' +
+            (h.note ? '<div class="tt-row"><span>备注</span><b>' + escapeHTML(h.note) + '</b></div>' : '') +
+          '</div>';
+        }
         return CalendarTooltip.buildHtml({
           dateLabel: p.y + ' 年 ' + p.m + ' 月 ' + p.d + ' 日' + ' · 周' + WEEKDAYS[new Date(p.y, p.m - 1, p.d).getDay()],
           yi: yiji.yi,
           ji: yiji.ji,
           timeStr: timeStr,
-          amountStr: amountStr
+          amountStr: amountStr,
+          holidayHtml: holidayHtml
         });
       }
     });

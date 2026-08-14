@@ -1617,3 +1617,110 @@ html.popup-html {
   color: #6f3f18;
   animation: pop-in 0.25s ease both;
 }
+
+/* 工作日/节假日标记 */
+.cell-date-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.day-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+.day-badge-holiday { color: #b42318; background: #fff1f0; }
+.day-badge-workday { color: #175cd3; background: #eff8ff; }
+.day-badge-user { color: #9a3412; background: #fff7ed; }
+.day-badge-annualLeave,
+.day-badge-personalLeave,
+.day-badge-companyHoliday,
+.day-badge-rest { color: #067647; background: #ecfdf3; }
+.day-badge-overtime,
+.day-badge-makeUpWork { color: #b54708; background: #fffaeb; }
+.dot-holiday { background: #fff1f0; color: #b42318; }
+.dot-workday { background: #eff8ff; color: #175cd3; }
+.dot-user { background: #fff7ed; color: #9a3412; }
+
+.holiday-editor-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(58, 51, 40, 0.28);
+  backdrop-filter: blur(3px);
+}
+.holiday-editor {
+  width: min(420px, 100%);
+  padding: 18px;
+  border: 1px solid rgba(190, 154, 94, 0.45);
+  border-radius: 22px;
+  background: #fffaf0;
+  box-shadow: 0 18px 44px rgba(78, 56, 24, 0.22);
+  color: #3a3328;
+}
+.holiday-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.holiday-editor-head h3 { margin: 0; font-size: 18px; }
+.holiday-editor-head button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: #f3e5c9;
+  color: #7a5a2b;
+  font-size: 20px;
+  cursor: pointer;
+}
+.holiday-editor-desc {
+  margin: 0 0 12px;
+  color: #8a7352;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.holiday-editor label {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  color: #6a4b28;
+  font-size: 13px;
+  font-weight: 700;
+}
+.holiday-editor select,
+.holiday-editor input,
+.holiday-editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e1c99d;
+  border-radius: 12px;
+  padding: 9px 10px;
+  background: #fffdf8;
+  color: #3a3328;
+  font: inherit;
+}
+.holiday-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+.btn-ghost {
+  background: #f7ead1;
+  color: #7a5a2b;
+}
