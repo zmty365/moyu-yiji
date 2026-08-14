@@ -212,6 +212,21 @@
       </div>
       <div class="achievements-grid" id="achievements-grid"></div>
     </section>
+
+    <!-- 数据备份：整体导出/导入 chrome.storage.local -->
+    <section class="backup-panel" aria-label="数据备份与迁移">
+      <div>
+        <span class="backup-kicker">💾 数据备份</span>
+        <h2>导出 / 导入摸鱼数据</h2>
+        <p>会整体搬运本扩展保存在 chrome.storage.local 里的数据，适合备份和换设备迁移。</p>
+      </div>
+      <div class="backup-actions">
+        <button class="btn btn-backup" id="backup-export" type="button">导出数据</button>
+        <button class="btn btn-backup" id="backup-import" type="button">导入数据</button>
+        <input class="is-hidden" id="backup-import-file" type="file" accept="application/json,.json" />
+      </div>
+      <p class="backup-status" id="backup-status" role="status"></p>
+    </section>
   </div>
 
   <script src="js/calendar-tooltip.js"></script>
