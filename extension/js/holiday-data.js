@@ -56,4 +56,4 @@
       return HOLIDAY_DATA_BY_YEAR;
     }
   };
-})(window);
+})(typeof globalThis !== 'undefined' ? globalThis : window);

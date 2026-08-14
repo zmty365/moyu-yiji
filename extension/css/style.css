@@ -1220,6 +1220,21 @@ html.popup-html {
 .mini-app .btn-full:hover {
   box-shadow: 0 10px 22px rgba(90, 120, 180, 0.34);
 }
+.mini-app .btn-dev-clear {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  border-radius: 14px;
+  background: #fff0ee;
+  border: 1px solid rgba(178, 58, 43, 0.35);
+  color: #b23a2b;
+  box-shadow: 0 6px 14px rgba(178, 58, 43, 0.08);
+}
+.mini-app .btn-dev-clear:hover {
+  background: #ffe0dc;
+  box-shadow: 0 8px 18px rgba(178, 58, 43, 0.12);
+}
 
 /* ===== 喝水提醒设置区 ===== */
 .mini-water .water-rows {
