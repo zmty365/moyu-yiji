@@ -399,6 +399,11 @@
   var btnNext = document.getElementById('cal-next');
   var btnToday = document.getElementById('cal-today');
 
+  var backupExport = document.getElementById('backup-export');
+  var backupImport = document.getElementById('backup-import');
+  var backupImportFile = document.getElementById('backup-import-file');
+  var backupStatus = document.getElementById('backup-status');
+
   var settingsPanel = document.getElementById('settings-panel');
   var settingsToggle = document.getElementById('settings-toggle');
   var settingsBody = document.getElementById('settings-body');
@@ -427,6 +432,82 @@
 
   var KEY_PET_ENABLED = 'pet-enabled';
   var KEY_PET_DROPPED = 'pet-dropped-coin';
+
+  function setBackupStatus(text, isError) {
+    if (!backupStatus) { return; }
+    backupStatus.textContent = text || '';
+    backupStatus.dataset.type = isError ? 'error' : 'ok';
+  }
+
+  function backupFileName() {
+    return 'moyu-backup-' + todayStr() + '.json';
+  }
+
+  function exportBackupData() {
+    setBackupStatus('正在导出数据…');
+    chrome.storage.local.get(null, function (data) {
+      if (chrome.runtime.lastError) {
+        setBackupStatus('导出失败：' + chrome.runtime.lastError.message, true);
+        return;
+      }
+      try {
+        var json = JSON.stringify(data || {}, null, 2);
+        var blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.href = url;
+        link.download = backupFileName();
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        setBackupStatus('导出完成：' + link.download);
+      } catch (e) {
+        setBackupStatus('导出失败：无法生成备份文件', true);
+      }
+    });
+  }
+
+  function importBackupData(file) {
+    if (!file) { return; }
+    setBackupStatus('正在读取备份文件…');
+    var reader = new FileReader();
+    reader.onload = function () {
+      var parsed;
+      try {
+        parsed = JSON.parse(String(reader.result || ''));
+      } catch (e) {
+        setBackupStatus('导入失败：请选择合法的 JSON 文件', true);
+        return;
+      }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        setBackupStatus('导入失败：备份内容必须是 JSON 对象', true);
+        return;
+      }
+      if (!window.confirm('导入会覆盖当前所有本地数据，确定继续吗？')) {
+        setBackupStatus('已取消导入');
+        return;
+      }
+      chrome.storage.local.clear(function () {
+        if (chrome.runtime.lastError) {
+          setBackupStatus('导入失败：' + chrome.runtime.lastError.message, true);
+          return;
+        }
+        chrome.storage.local.set(parsed, function () {
+          if (chrome.runtime.lastError) {
+            setBackupStatus('导入失败：' + chrome.runtime.lastError.message, true);
+            return;
+          }
+          setBackupStatus('导入完成，正在刷新页面…');
+          window.location.reload();
+        });
+      });
+    };
+    reader.onerror = function () {
+      setBackupStatus('导入失败：无法读取文件', true);
+    };
+    reader.readAsText(file, 'utf-8');
+  }
 
   var RING_R = 108;
   var RING_CIRCUMFERENCE = 2 * Math.PI * RING_R;
@@ -952,6 +1033,19 @@
     cursor = new Date(t.getFullYear(), t.getMonth(), 1);
     renderMonth();
   });
+
+  if (backupExport) {
+    backupExport.addEventListener('click', exportBackupData);
+  }
+  if (backupImport && backupImportFile) {
+    backupImport.addEventListener('click', function () {
+      backupImportFile.value = '';
+      backupImportFile.click();
+    });
+    backupImportFile.addEventListener('change', function () {
+      importBackupData(backupImportFile.files && backupImportFile.files[0]);
+    });
+  }
 
   // 状态变化 -> 持久化计时器上下文（start/pause/resume/reset 触发 _emit）
   timer.onChange(function () {

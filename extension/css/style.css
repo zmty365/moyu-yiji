@@ -396,6 +396,67 @@ button {
   transform: translateY(2px);
 }
 
+/* —— 数据备份 —— */
+.backup-panel {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-family: "SimHei", "PingFang SC", "Microsoft YaHei", sans-serif;
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: #fffdf4;
+  border: 1px solid #e8dcBE;
+  box-shadow: 0 10px 26px rgba(120, 100, 60, 0.12);
+}
+.backup-panel > div:first-child {
+  flex: 1 1 360px;
+}
+.backup-kicker {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #b15f0e;
+}
+.backup-panel h2 {
+  font-size: 20px;
+  font-weight: 800;
+  color: #7a140e;
+  font-family: "SimHei", "PingFang SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0.06em;
+}
+.backup-panel p {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #8a7550;
+}
+.backup-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.btn-backup {
+  background: #fff4e0;
+  border: 1px solid rgba(177, 95, 14, 0.35);
+  color: #9c5a10;
+  box-shadow: 0 6px 14px rgba(120, 80, 30, 0.1);
+}
+.btn-backup:hover {
+  background: #ffedcc;
+}
+.backup-status {
+  flex: 1 0 100%;
+  min-height: 18px;
+  margin-top: 0 !important;
+  font-weight: 700;
+}
+.backup-status[data-type="ok"] { color: #2f7a47; }
+.backup-status[data-type="error"] { color: #b23a2b; }
+
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
