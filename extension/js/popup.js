@@ -460,11 +460,17 @@
   var petEnabledInput = document.getElementById('pet-enabled');
   var petDroppedCoin = document.getElementById('pet-dropped-coin');
   var petStatusText = document.getElementById('pet-status-text');
+  var petAvatar = document.getElementById('pet-avatar');
+  var petName = document.getElementById('pet-name');
+  var petCompany = document.getElementById('pet-company');
+  var petSelector = document.getElementById('pet-selector');
 
   var fortuneText = document.getElementById('fortune-text');
 
   var KEY_PET_ENABLED = 'pet-enabled';
   var KEY_PET_DROPPED = 'pet-dropped-coin';
+  var KEY_PET_SELECTED = 'pet-selected';
+  var petSelectedId = (window.MoyuPets && window.MoyuPets.DEFAULT) || 'cat';
 
   function setBackupStatus(text, isError) {
     if (!backupStatus) { return; }
@@ -593,7 +599,7 @@
   }
 
   function renderPetCard(data) {
-    if (!petEnabledInput && !petDroppedCoin && !petStatusText) return;
+    if (!petEnabledInput && !petDroppedCoin && !petStatusText && !petSelector) return;
     data = data || {};
     var enabled = data[KEY_PET_ENABLED] !== false;
     var dropped = Number(data[KEY_PET_DROPPED]) || 0;
@@ -603,6 +609,43 @@
       petStatusText.textContent = enabled
         ? '桌宠已开启，会常驻网页右下角陪你摸鱼。'
         : '桌宠已隐藏，可随时重新开启。';
+    }
+    renderPetSelector();
+  }
+
+  function petOf(id) {
+    if (window.MoyuPets && window.MoyuPets.get) return window.MoyuPets.get(id);
+    return null;
+  }
+
+  function updatePetAvatar() {
+    var p = petOf(petSelectedId);
+    if (p && petAvatar) petAvatar.innerHTML = p.svg;
+    if (p && petName) petName.textContent = p.name;
+    if (p && petCompany) petCompany.textContent = p.emoji + ' ' + p.company;
+  }
+
+  function renderPetSelector() {
+    if (!petSelector || !window.MoyuPets || !window.MoyuPets.list) return;
+    petSelector.innerHTML = window.MoyuPets.list.map(function (p) {
+      var active = p.id === petSelectedId ? ' is-active' : '';
+      return '<button type="button" class="pet-option' + active + '" data-pet-id="' + p.id + '" title="切换为 ' + p.name + '">' +
+        '<span class="pet-option-fig">' + p.svg + '</span>' +
+        '<span class="pet-option-name">' + p.name + '</span>' +
+        '<span class="pet-option-company">' + p.company + '</span>' +
+        '</button>';
+    }).join('');
+    updatePetAvatar();
+  }
+
+  function applyPetSelection(id, persist) {
+    var p = petOf(id);
+    if (!p) return;
+    petSelectedId = p.id;
+    renderPetSelector();
+    if (persist !== false) {
+      var set = {}; set[KEY_PET_SELECTED] = p.id;
+      storageSet(set);
     }
   }
 
@@ -1217,6 +1260,10 @@
       if (data[KEY_HOLIDAY_OVERRIDES] && typeof data[KEY_HOLIDAY_OVERRIDES] === 'object') {
         holidayOverrides = data[KEY_HOLIDAY_OVERRIDES];
       }
+      // 4) 恢复当前选中的桌宠
+      if (data[KEY_PET_SELECTED] && petOf(data[KEY_PET_SELECTED])) {
+        petSelectedId = data[KEY_PET_SELECTED];
+      }
     }
 
     // 全部恢复后，首次装配渲染。
@@ -1237,6 +1284,15 @@
         chrome.storage.local.set(set, function () {
           renderPetCard(set);
         });
+      });
+    }
+
+    if (petSelector) {
+      petSelector.addEventListener('click', function (event) {
+        var btn = event.target && event.target.closest ? event.target.closest('.pet-option') : null;
+        if (btn && btn.getAttribute('data-pet-id')) {
+          applyPetSelection(btn.getAttribute('data-pet-id'), true);
+        }
       });
     }
 
@@ -1347,6 +1403,8 @@
             petData[KEY_PET_ENABLED] = petEnabledInput.checked;
           }
           renderPetCard(petData);
+        } else if (key === KEY_PET_SELECTED) {
+          applyPetSelection(newVal, false);
         }
       }
       if (needTimer && changes[KEY_TIMER] && changes[KEY_TIMER].newValue) {

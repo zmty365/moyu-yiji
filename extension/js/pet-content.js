@@ -1,6 +1,8 @@
 // 桌宠 demo · 内容脚本（注入到任意网页右下角常驻）
 // 对齐 growth-system-prd.md 桌宠 V1：两态联动 + 抚摸掉币 + 反向监督气泡，零负担。
 // 自包含：内嵌 SVG + 样式 + 交互，不依赖页面环境；数据存 chrome.storage.local。
+// V2：多桌宠切换——造型/文案统一取自 pet-registry.js 的 MoyuPets 图鉴，
+//     选中的桌宠写入 'pet-selected'，可跨页面实时切换；抚摸会触发带大厂彩蛋的文字气泡。
 (function () {
   'use strict';
 
@@ -8,38 +10,22 @@
   if (window.__moyuPetInjected) return;
   window.__moyuPetInjected = true;
 
+  // 桌宠图鉴由 manifest 先于本脚本注入；缺失则安全退出（不渲染桌宠）。
+  var Pets = window.MoyuPets;
+  if (!Pets || !Pets.get) return;
+
   // ---- 存储键 ----
   var K_COIN = 'pet-coin';        // 摸鱼币余额
   var K_PET_DAY = 'pet-pat-day';  // 记录抚摸次数所属日期（YYYY-MM-DD）
   var K_PET_CNT = 'pet-pat-count';// 当日已抚摸掉币次数
   var K_PET_DROPPED = 'pet-dropped-coin'; // 桌宠累计掉落摸鱼币
   var K_PET_ENABLED = 'pet-enabled'; // 是否显示桌宠（默认显示）
+  var K_PET_SELECTED = 'pet-selected'; // 当前选中的桌宠 id
   var DAILY_PAT_LIMIT = 10;       // 每日抚摸掉币上限（PRD §6.3）
 
-  // ---- 文案库 ----
-  var IDLE_BUBBLES = ['哥们儿…要不摸一会儿？', '工位这么安静，不像你啊', '老板不在，良辰吉时', '闲着也是闲着，摸一把？'];
-  var PAT_EGGS = ['喵，蹭到你了', '今天也要开心摸鱼哦', '别卷了，卷不动了', '这一下值一个亿（情绪价值）', '摸鱼使我快乐 🫧'];
-
-  // ---- 内嵌小猫 SVG（复用 assets/mascot-cat.svg 造型）----
-  var CAT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="72" height="72" aria-label="摸鱼小猫">'
-    + '<defs><linearGradient id="mpCatBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7d9a6"/><stop offset="1" stop-color="#e9b877"/></linearGradient></defs>'
-    + '<path d="M70 76 C 84 74, 86 60, 76 54" fill="none" stroke="#e9b877" stroke-width="7" stroke-linecap="round"/>'
-    + '<path d="M28 82 C 26 60, 34 52, 48 52 C 62 52, 70 60, 68 82 Z" fill="url(#mpCatBody)" stroke="#c98f45" stroke-width="2.5" stroke-linejoin="round"/>'
-    + '<ellipse cx="48" cy="72" rx="12" ry="14" fill="#fff7ea" opacity="0.85"/>'
-    + '<ellipse cx="38" cy="82" rx="7" ry="5" fill="#fff7ea" stroke="#c98f45" stroke-width="2"/>'
-    + '<ellipse cx="58" cy="82" rx="7" ry="5" fill="#fff7ea" stroke="#c98f45" stroke-width="2"/>'
-    + '<path d="M28 34 L 24 14 L 42 26 Z" fill="url(#mpCatBody)" stroke="#c98f45" stroke-width="2.5" stroke-linejoin="round"/>'
-    + '<path d="M68 34 L 72 14 L 54 26 Z" fill="url(#mpCatBody)" stroke="#c98f45" stroke-width="2.5" stroke-linejoin="round"/>'
-    + '<path d="M30 30 L 28 20 L 37 26 Z" fill="#f5a6a6"/><path d="M66 30 L 68 20 L 59 26 Z" fill="#f5a6a6"/>'
-    + '<circle cx="48" cy="40" r="24" fill="url(#mpCatBody)" stroke="#c98f45" stroke-width="2.5"/>'
-    + '<path d="M48 17 v7 M40 18 l2 6 M56 18 l-2 6" stroke="#c98f45" stroke-width="2.4" stroke-linecap="round" opacity="0.7"/>'
-    + '<ellipse class="mp-eye" cx="39" cy="42" rx="5.5" ry="6.5" fill="#3a3328"/>'
-    + '<ellipse class="mp-eye" cx="57" cy="42" rx="5.5" ry="6.5" fill="#3a3328"/>'
-    + '<circle cx="41" cy="39.5" r="1.8" fill="#fff"/><circle cx="59" cy="39.5" r="1.8" fill="#fff"/>'
-    + '<path d="M46 49 L 50 49 L 48 51.5 Z" fill="#f5a6a6"/>'
-    + '<path d="M48 51.5 v2 M48 53.5 Q 44 56, 41 54 M48 53.5 Q 52 56, 55 54" stroke="#3a3328" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
-    + '<ellipse cx="33" cy="48" rx="4" ry="2.6" fill="#f5a6a6" opacity="0.55"/><ellipse cx="63" cy="48" rx="4" ry="2.6" fill="#f5a6a6" opacity="0.55"/>'
-    + '</svg>';
+  // 当前桌宠（id 与定义对象）
+  var petId = Pets.DEFAULT;
+  var pet = Pets.get(petId);
 
   // ---- 样式（独立命名空间 mp-，极高 z-index）----
   var style = document.createElement('style');
@@ -47,6 +33,7 @@
     + '#moyu-pet{position:fixed;right:20px;bottom:20px;z-index:2147483646;width:110px;font-family:-apple-system,"PingFang SC",sans-serif;user-select:none;cursor:grab}'
     + '#moyu-pet.mp-dragging{cursor:grabbing}'
     + '#moyu-pet .mp-cat{display:block;margin:0 auto;transform-origin:center bottom;animation:mp-float 3.6s ease-in-out infinite}'
+    + '#moyu-pet .mp-cat svg{display:block;margin:0 auto}'
     + '#moyu-pet .mp-eye{transform-origin:center;animation:mp-blink 4s ease-in-out infinite}'
     + '#moyu-pet .mp-cat:active{transform:scale(0.92)}'
     + '#moyu-pet .mp-panel{margin-top:4px;text-align:center}'
@@ -57,6 +44,7 @@
     + '#moyu-pet.mp-collapsed .mp-panel,#moyu-pet.mp-collapsed .mp-bubble{display:none}'
     + '#moyu-pet.mp-collapsed{width:auto}'
     + '#moyu-pet.mp-collapsed .mp-cat{opacity:.5;width:44px;height:44px}'
+    + '#moyu-pet.mp-collapsed .mp-cat svg{width:44px;height:44px}'
     + '@keyframes mp-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}'
     + '@keyframes mp-blink{0%,46%,100%{transform:scaleY(1)}50%{transform:scaleY(.3)}}';
   document.documentElement.appendChild(style);
@@ -66,7 +54,7 @@
   root.id = 'moyu-pet';
   root.innerHTML = ''
     + '<div class="mp-bubble"></div>'
-    + '<div class="mp-cat">' + CAT_SVG + '</div>'
+    + '<div class="mp-cat"></div>'
     + '<div class="mp-panel">'
     + '  <span class="mp-coin">🐟 0</span>'
     + '</div>'
@@ -99,6 +87,15 @@
 
   function renderCoin() { elCoin.textContent = '🐟 ' + coin; }
 
+  // 切换桌宠：更新造型 + 播报登场问候。
+  function applyPet(id) {
+    var next = Pets.get(id);
+    petId = next.id;
+    pet = next;
+    elCat.innerHTML = pet.svg;
+    showBubble(pet.greeting);
+  }
+
   // 抚摸掉币走统一钱包（原子加币），避免与等级升级发币在不同上下文互相覆盖。
   function awardCoin(gain) {
     try {
@@ -116,23 +113,23 @@
     }
   }
 
-  // ---- 抚摸掉落（PRD §6.3：70% 掉币 / 25% 彩蛋 / 每日 10 次上限）----
+  // ---- 抚摸掉落：50% 掉币 / 50% 大厂彩蛋文字（PRD §6.3 基础上把彩蛋概率拉高）----
   function onPat() {
     try {
       chrome.storage.local.get([K_PET_DAY, K_PET_CNT], function (o) {
         var today = todayStr();
         var cnt = (o[K_PET_DAY] === today) ? (o[K_PET_CNT] || 0) : 0;
         if (cnt >= DAILY_PAT_LIMIT) {
-          showBubble('今天摸够本啦，' + pick(PAT_EGGS));
+          showBubble('今天摸够本啦，' + pick(pet.pat));
           return;
         }
         var r = Math.random();
-        if (r < 0.7) {
+        if (r < 0.5) {
           var gain = 1 + Math.floor(Math.random() * 3); // 1~3 币
           awardCoin(gain);
           showBubble('+' + gain + ' 摸鱼币 🐟');
         } else {
-          showBubble(pick(PAT_EGGS));
+          showBubble(pick(pet.egg));
         }
         var set = {}; set[K_PET_DAY] = today; set[K_PET_CNT] = cnt + 1;
         chrome.storage.local.set(set);
@@ -145,7 +142,7 @@
     clearInterval(idleTimer);
     idleTimer = setInterval(function () {
       if (!isMoyu && !root.classList.contains('mp-collapsed')) {
-        showBubble(pick(IDLE_BUBBLES));
+        showBubble(pick(pet.idle));
       }
     }, 45000); // 约 45s 冒一句，低频不打扰
   }
@@ -181,10 +178,15 @@
     root.style.display = enabled === false ? 'none' : '';
   }
 
-  // ---- 初始化：读币 + 启动待机气泡 ----
+  // ---- 初始化：读币 + 选中桌宠 + 启动待机气泡 ----
   try {
-    chrome.storage.local.get([K_PET_ENABLED], function (o) {
+    chrome.storage.local.get([K_PET_ENABLED, K_PET_SELECTED], function (o) {
       applyEnabled(!(o && o[K_PET_ENABLED] === false));
+      if (o && o[K_PET_SELECTED]) {
+        applyPet(o[K_PET_SELECTED]);
+      } else {
+        showBubble(pet.greeting);
+      }
     });
     if (window.MoyuWallet) {
       MoyuWallet.getBalance(function (v) { coin = v; renderCoin(); });
@@ -195,13 +197,17 @@
       });
     }
   } catch (e) { /* 忽略 */ }
+
   try {
     chrome.storage.onChanged.addListener(function (changes, area) {
       if (area === 'local' && changes[K_PET_ENABLED]) {
         applyEnabled(changes[K_PET_ENABLED].newValue !== false);
       }
+      if (area === 'local' && changes[K_PET_SELECTED] && changes[K_PET_SELECTED].newValue) {
+        applyPet(changes[K_PET_SELECTED].newValue);
+      }
     });
   } catch (e) { /* 忽略 */ }
+
   startIdleBubbles();
-  setTimeout(function () { showBubble('嗨，我是你的摸鱼搭子 😼'); }, 1200);
 })();

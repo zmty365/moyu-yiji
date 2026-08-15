@@ -162,7 +162,7 @@
     <section class="pet-panel" id="pet-panel" aria-label="桌宠管理">
       <div class="pet-head">
         <div>
-          <span class="pet-kicker">🐱 桌宠搭子</span>
+          <span class="pet-kicker">🐾 桌宠搭子</span>
           <h2>摸鱼搭子</h2>
         </div>
         <label class="pet-switch" title="控制网页右下角桌宠是否出现">
@@ -171,16 +171,16 @@
         </label>
       </div>
       <div class="pet-body">
-        <img src="assets/mascot-cat.svg" alt="摸鱼小猫" class="pet-avatar" />
+        <div class="pet-avatar" id="pet-avatar" aria-label="当前桌宠"></div>
         <div class="pet-stat">
-          <span>累计掉落摸鱼币</span>
+          <span class="pet-name" id="pet-name">摸鱼小猫</span>
+          <span class="pet-company" id="pet-company">摸鱼搭子 · 原始猫</span>
+          <span class="pet-coin-label">累计掉落摸鱼币</span>
           <b id="pet-dropped-coin">0</b>
         </div>
-        <p class="pet-desc" id="pet-status-text">桌宠已开启，会常驻网页右下角陪你摸鱼。</p>
       </div>
-      <div class="pet-actions" aria-label="桌宠扩展功能预留区">
-        <span>后续可扩展：装扮、互动记录、喂养与更多技能</span>
-      </div>
+      <p class="pet-desc" id="pet-status-text">桌宠已开启，会常驻网页右下角陪你摸鱼。</p>
+      <div class="pet-selector" id="pet-selector" aria-label="选择桌宠"></div>
     </section>
 
     <section class="level-chart" id="full-level-chart" aria-label="等级晋级曲线">
@@ -239,6 +239,7 @@
   <script src="js/moyu-timer.js"></script>
   <script src="js/achievements.js"></script>
   <script src="js/achievement-engine.js"></script>
+  <script src="js/pet-registry.js"></script>
   <script src="js/popup.js"></script>
   <script src="js/wallet.js"></script>
   <script src="js/level.js"></script>

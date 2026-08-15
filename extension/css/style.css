@@ -1485,12 +1485,20 @@ html.popup-html {
   gap: 14px 18px;
 }
 .pet-avatar {
-  width: 78px;
-  height: 78px;
+  width: 84px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px;
   border-radius: 22px;
   background: #fff7df;
   border: 1px solid rgba(208, 178, 113, 0.58);
+}
+.pet-avatar svg {
+  width: 60px;
+  height: 60px;
+  display: block;
 }
 .pet-stat {
   display: flex;
@@ -1498,8 +1506,7 @@ html.popup-html {
   gap: 4px;
 }
 .pet-stat span,
-.pet-desc,
-.pet-actions {
+.pet-desc {
   color: #8d754c;
   font-size: 13px;
 }
@@ -1509,16 +1516,70 @@ html.popup-html {
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.pet-desc {
-  grid-column: 2;
-  margin: -4px 0 0;
+.pet-stat .pet-name {
+  color: #6f3f18;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.2;
 }
-.pet-actions {
+.pet-stat .pet-company {
+  color: #a06b24;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.pet-stat .pet-coin-label {
+  margin-top: 6px;
+  color: #8d754c;
+  font-size: 12px;
+}
+.pet-desc {
+  margin: 8px 0 0;
+}
+.pet-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 16px;
-  padding: 12px 14px;
+}
+.pet-option {
+  flex: 1 1 auto;
+  min-width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
   border-radius: 16px;
-  background: rgba(255, 250, 240, 0.82);
-  border: 1px dashed rgba(208, 178, 113, 0.72);
+  border: 1.5px solid rgba(208, 178, 113, 0.55);
+  background: #fffaf0;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.pet-option:hover {
+  transform: translateY(-2px);
+  border-color: #d98817;
+}
+.pet-option.is-active {
+  border-color: #d98817;
+  background: linear-gradient(160deg, #fff7e0, #ffedc4);
+  box-shadow: 0 6px 16px rgba(160, 107, 36, 0.18);
+}
+.pet-option-fig svg {
+  width: 46px;
+  height: 46px;
+  display: block;
+}
+.pet-option-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6f3f18;
+  line-height: 1.1;
+}
+.pet-option-company {
+  font-size: 10px;
+  color: #a06b24;
+  line-height: 1.1;
 }
 
 .achievements {
