@@ -589,11 +589,10 @@
       var theme = MoyuHolidayService.themes[info.theme] || MoyuHolidayService.themes.custom;
       text = theme.badge || info.name || (info.type === 'workday' ? '班' : '休');
       cls += 'day-badge-user day-badge-' + escapeHTML(info.theme || 'custom');
-    } else if (info.source === 'builtin') {
+    } else {
+      // builtin(法定节假日/调休) 与 default(普通工作日/周末) 统一显示 休/班
       text = info.type === 'workday' ? '班' : '休';
       cls += info.type === 'workday' ? 'day-badge-workday' : 'day-badge-holiday';
-    } else {
-      return '';
     }
     return '<span class="' + cls + '" title="' + escapeHTML(info.name) + '">' + escapeHTML(text) + '</span>';
   }

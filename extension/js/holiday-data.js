@@ -1,5 +1,5 @@
 // 2026 法定节假日与调休数据（内置兜底）。
-// type: holiday=法定休息日；workday=法定调休上班日。
+// type: holiday=法定休息日；workday=法定上班日。
 (function (global) {
   'use strict';
 
