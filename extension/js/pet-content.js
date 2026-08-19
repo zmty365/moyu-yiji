@@ -3,16 +3,21 @@
 // 自包含：内嵌 SVG + 样式 + 交互，不依赖页面环境；数据存 chrome.storage.local。
 // V2：多桌宠切换——造型/文案统一取自 pet-registry.js 的 MoyuPets 图鉴，
 //     选中的桌宠写入 'pet-selected'，可跨页面实时切换；抚摸会触发带大厂彩蛋的文字气泡。
-(function () {
+(function bootMoyuPet(retryCount) {
   'use strict';
 
   // 避免重复注入（同页多次执行时）
   if (window.__moyuPetInjected) return;
-  window.__moyuPetInjected = true;
 
   // 桌宠图鉴由 manifest 先于本脚本注入；缺失则安全退出（不渲染桌宠）。
   var Pets = window.MoyuPets;
-  if (!Pets || !Pets.get) return;
+  if (!Pets || !Pets.get) {
+    if ((retryCount || 0) < 10) {
+      setTimeout(function () { bootMoyuPet((retryCount || 0) + 1); }, 50);
+    }
+    return;
+  }
+  window.__moyuPetInjected = true;
 
   // ---- 存储键 ----
   var K_COIN = 'pet-coin';        // 摸鱼币余额
@@ -47,7 +52,7 @@
     + '#moyu-pet.mp-collapsed .mp-cat svg{width:44px;height:44px}'
     + '@keyframes mp-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}'
     + '@keyframes mp-blink{0%,46%,100%{transform:scaleY(1)}50%{transform:scaleY(.3)}}';
-  document.documentElement.appendChild(style);
+  (document.head || document.documentElement).appendChild(style);
 
   // ---- DOM 构建 ----
   var root = document.createElement('div');
@@ -59,12 +64,25 @@
     + '  <span class="mp-coin">🐟 0</span>'
     + '</div>'
     + '<button class="mp-toggle" type="button" title="收起/展开">–</button>';
-  document.documentElement.appendChild(root);
+  function mountRoot() {
+    var parent = document.body || document.documentElement;
+    if (root.parentNode === parent) return;
+    parent.appendChild(root);
+  }
+  if (document.body) {
+    mountRoot();
+  } else {
+    document.addEventListener('DOMContentLoaded', mountRoot, { once: true });
+    mountRoot();
+  }
 
   var elBubble = root.querySelector('.mp-bubble');
   var elCat = root.querySelector('.mp-cat');
   var elCoin = root.querySelector('.mp-coin');
   var elToggle = root.querySelector('.mp-toggle');
+
+  // 先渲染默认桌宠，避免没有 pet-selected 历史值时页面只出现空容器。
+  elCat.innerHTML = pet.svg;
 
   var isMoyu = false;   // 摸鱼态
   var coin = 0;
